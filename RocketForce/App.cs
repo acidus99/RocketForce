@@ -22,17 +22,20 @@ namespace RocketForce
         private readonly byte[] _buffer = new byte[4096];
         private readonly Decoder _decoder = Encoding.UTF8.GetDecoder();
 
-        private readonly string _directoryToServe;
         private readonly X509Certificate2 _serverCertificate;
         private readonly ILogger<App> _logger;
 
         private RequestCallback _onBadRequestCallback;
+        StaticFileModule FileModule;
 
         public App(string directoryToServe, X509Certificate2 certificate, ILogger<App> logger)
         {
-            _directoryToServe = directoryToServe;
             _serverCertificate = certificate;
             _logger = logger;
+            if (!String.IsNullOrEmpty(directoryToServe))
+            {
+                FileModule = new StaticFileModule(directoryToServe);
+            }
         }
 
         public void OnRequest(string route, RequestCallback callback)
@@ -137,22 +140,23 @@ namespace RocketForce
             _logger.LogDebug("\tBaseURL: \"{0}\"", request.Url.NormalizedUrl);
             _logger.LogDebug("\tRoute: \"{0}\"", request.Route);
 
-            
+
+            //look for a programmatic route and execute if found
             RequestCallback callback;
             _requestCallbacks.TryGetValue(request.Route, out callback);
             if (callback != null)
             {
                 callback(request, response, _logger);
-            } 
-            else if (_onBadRequestCallback != null)
-            {
-                _onBadRequestCallback(request, response, _logger);
-            } 
-            else
-            {
-                //nope, return a not found
-                response.Missing("Could not find a file or route for this URL");
             }
+
+            //nope... look to see if we are handling file system requests
+            if (FileModule != null)
+            {
+                FileModule.HandleRequest(request, response, _logger);
+                return;
+            }
+            //nope, return a not found
+            response.Missing("Could not find a file or route for this URL");
         }
 
         private string ReadRequest(SslStream sslStream)
