@@ -8,11 +8,12 @@ using System.Text;
 using System.Security.Authentication;
 using System.IO;
 
+using Gemini.Net;
 using Microsoft.Extensions.Logging;
 
 namespace RocketForce
 {
-    using RequestCallback = System.Action<Cuipod.Request, Cuipod.Response, ILogger<App>>;
+    using RequestCallback = System.Action<Request, Response, ILogger<App>>;
 
     public class App
     {
@@ -70,12 +71,10 @@ namespace RocketForce
         private void ProcessRequest(TcpClient client)
         {
             SslStream sslStream = null;
-
             try
             {
                 sslStream = new SslStream(client.GetStream(), false);
-                Response response = ProcessRequest(sslStream);
-                sslStream.Write(response.Encode());
+                ProcessRequest(sslStream);
             }
             catch (AuthenticationException e)
             {
@@ -97,7 +96,7 @@ namespace RocketForce
             }
         }
 
-        private Response ProcessRequest(SslStream sslStream)
+        private void ProcessRequest(SslStream sslStream)
         {
             sslStream.ReadTimeout = 5000;
             sslStream.AuthenticateAsServer(_serverCertificate, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
@@ -105,80 +104,55 @@ namespace RocketForce
             // Read a message from the client.
             string rawRequest = ReadRequest(sslStream);
 
-            Response response = new Response(_directoryToServe);
+            var response = new Response(sslStream);
 
             if (rawRequest == null)
             {
-                _logger.LogDebug("rawRequest is null - bad request");
-                response.Status = StatusCode.BadRequest;
-                return response;
+                _logger.LogDebug("Could not read incoming URL");
+                response.BadRequest("Missing URL");
+                return;
             }
 
             _logger.LogDebug("Raw request: \"{0}\"", rawRequest);
 
-            const string protocol= "gemini";
-            const string protocolSeparator = "://";
-
-            int protocolDelimiter = rawRequest.IndexOf(protocolSeparator);
-            if (protocolDelimiter == -1)
+            GeminiUrl url = null;
+            try
             {
-                response.Status = StatusCode.BadRequest;
-                return response;
+                url = new GeminiUrl(rawRequest);
+            }
+            catch (Exception)
+            {
+                _logger.LogDebug("Requested URL is invalid");
+                response.BadRequest("Invalid URL");
+                return;
             }
 
-            string requestProtocol = rawRequest.Substring(0, protocolDelimiter);
-            if (requestProtocol != protocol)
+            var request = new Request
             {
-                response.Status = StatusCode.BadRequest;
-                return response;
-            }
-
-            string url = rawRequest.Substring(protocolDelimiter + protocolSeparator.Length);
-            int domainNameDelimiter = url.IndexOf("/");
-            if (domainNameDelimiter == -1)
-            {
-                response.Status = StatusCode.BadRequest;
-                return response;
-            }
-            string domainName = url.Substring(0, domainNameDelimiter);
-            string baseURL = protocol + protocolSeparator + domainName;
-
-            string route = url.Substring(domainNameDelimiter);
-            string parameters = "";
-            int parametersDelimiter = route.IndexOf("?");
-            if (parametersDelimiter != -1)
-            {
-                parameters = route.Substring(parametersDelimiter + 1);
-                route = route.Substring(0, parametersDelimiter);
-            }
+                Url = url,
+            };
 
             _logger.LogDebug("Request info:");
-            _logger.LogDebug("\tBaseURL: \"{0}\"", baseURL);
-            _logger.LogDebug("\tRoute: \"{0}\"", route);
-            _logger.LogDebug("\tParameters: \"{0}\"", parameters);
+            _logger.LogDebug("\tRemote IP: \"{0}\"", request.RemoteIP);
+            _logger.LogDebug("\tBaseURL: \"{0}\"", request.Url.NormalizedUrl);
+            _logger.LogDebug("\tRoute: \"{0}\"", request.Route);
 
-            Request request = new Request(baseURL, route, parameters);
-            if (response.Status == StatusCode.Success)
+            
+            RequestCallback callback;
+            _requestCallbacks.TryGetValue(request.Route, out callback);
+            if (callback != null)
             {
-                RequestCallback callback;
-                _requestCallbacks.TryGetValue(request.Route, out callback);
-                if (callback != null)
-                {
-                    callback(request, response, _logger);
-                } 
-                else if (_onBadRequestCallback != null)
-                {
-                    _onBadRequestCallback(request, response, _logger);
-                } 
-                else
-                {
-                    _logger.LogWarning("Bad request: No suitable request callback");
-                    response.Status = StatusCode.BadRequest;
-                    return response;
-                }
+                callback(request, response, _logger);
+            } 
+            else if (_onBadRequestCallback != null)
+            {
+                _onBadRequestCallback(request, response, _logger);
+            } 
+            else
+            {
+                //nope, return a not found
+                response.Missing("Could not find a file or route for this URL");
             }
-
-            return response;
         }
 
         private string ReadRequest(SslStream sslStream)

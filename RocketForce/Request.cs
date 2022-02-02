@@ -1,16 +1,11 @@
-﻿namespace RocketForce
+﻿using Gemini.Net;
+
+namespace RocketForce
 {
     public class Request
     {
-        public string BaseURL { get; internal set; }
-        public string Route { get; internal set; }
-        public string Parameters { get; internal set; }
-
-        internal Request(string baseURL, string route, string parameters)
-        {
-            BaseURL = baseURL;
-            Route = route;
-            Parameters = parameters;
-        }
+        public string RemoteIP { get; set; }
+        public GeminiUrl Url { get; set; }
+        public string Route => Url.Path.ToLower();
     }
 }

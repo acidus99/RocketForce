@@ -1,52 +1,50 @@
 ﻿using System;
 using System.IO;
+using System.Net.Security;
 using System.Text;
-
 namespace RocketForce
 {
     public class Response
     {
-        public StatusCode Status  { get; set; }
+        readonly SslStream fout;
 
-        private readonly string _directoryToServe;
-        private string _requestBody = "";
-
-        internal Response(string directoryToServe)
+        public Response(SslStream respStream)
         {
-            _directoryToServe = directoryToServe;
-            Status = StatusCode.Success;
+            fout = respStream;
         }
 
-        public void RenderPlainTextLine(string text)
+        public void Success(string mimeType = "text/gemini")
         {
-            _requestBody += text + "\r\n";
+            Write($"20 {mimeType}\r\n");
         }
 
-        public void RenderFileContent(string relativePathToFile)
+        public void Input(string prompt)
         {
-            _requestBody += File.ReadAllText(_directoryToServe + relativePathToFile, Encoding.UTF8) + "\r\n";
+            Write($"10 {prompt}\r\n");
         }
 
-        public void SetRedirectURL(string route)
+        public void BadRequest(string msg)
         {
-            _requestBody = route + "\r\n";
+            Write($"59 {msg}\r\n");
         }
 
-        public void SetInputHint(string hint)
+        public void Missing(string msg)
         {
-            _requestBody = hint + "\r\n";
+            Write($"51 {msg}\r\n");
         }
 
-        internal byte[] Encode()
+        public void Redirect(string url)
         {
-            string wholeResponse = ((int)Status).ToString() + " ";
-            if (Status == StatusCode.Success)
-            {
-                wholeResponse += "text/gemini\r\n";
-            }
-
-            wholeResponse += _requestBody;
-            return Encoding.UTF8.GetBytes(wholeResponse);
+            Write($"30 {url}\r\n");
         }
+
+        public void Write(string text)
+            => Write(text, Encoding.UTF8);
+
+        public void Write(string text, Encoding encoding)
+        {
+            fout.Write(encoding.GetBytes(text));
+        }
+
     }
 }
