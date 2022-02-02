@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Collections.Generic;
@@ -21,7 +22,8 @@ namespace RocketForce
         const int MaxRequestSize = 1024 + 2;
 
         private readonly TcpListener _listener = new TcpListener(IPAddress.Loopback, 1966);
-        private readonly Dictionary<string, RequestCallback> _requestCallbacks = new Dictionary<string, RequestCallback>();
+
+        readonly List<Tuple<string, RequestCallback>> routeCallbacks;
 
         private readonly X509Certificate2 _serverCertificate;
         private readonly ILogger<App> _logger;
@@ -30,8 +32,11 @@ namespace RocketForce
 
         public App(string directoryToServe, X509Certificate2 certificate, ILogger<App> logger)
         {
+            routeCallbacks =  new List<Tuple<string, RequestCallback>>();
+
             _serverCertificate = certificate;
             _logger = logger;
+
             if (!String.IsNullOrEmpty(directoryToServe))
             {
                 FileModule = new StaticFileModule(directoryToServe);
@@ -39,10 +44,8 @@ namespace RocketForce
         }
 
         public void OnRequest(string route, RequestCallback callback)
-        {
-            _requestCallbacks.Add(route, callback);
-        }
-
+            => routeCallbacks.Add(new Tuple<string, RequestCallback>(route.ToLower(), callback));
+       
         public void Run()
         {
             try
@@ -148,13 +151,13 @@ namespace RocketForce
             _logger.LogDebug("\tRemote IP: \"{0}\"", request.RemoteIP);
             _logger.LogDebug("\tBaseURL: \"{0}\"", request.Url.NormalizedUrl);
             _logger.LogDebug("\tRoute: \"{0}\"", request.Route);
-            
-            //look for a programmatic route and execute if found
-            RequestCallback callback;
-            _requestCallbacks.TryGetValue(request.Route, out callback);
+
+            //First look if this request matches a route...
+            var callback = FindRoute(request.Route);
             if (callback != null)
             {
                 callback(request, response, _logger);
+                return;
             }
 
             //nope... look to see if we are handling file system requests
@@ -166,6 +169,16 @@ namespace RocketForce
             //nope, return a not found
             response.Missing("Could not find a file or route for this URL");
         }
+
+        /// <summary>
+        /// Finds the first callback that registered for a route
+        /// We use "starts with" because we need to support routes that use parts of the path
+        /// to pass variables/state (e.g. /search/{language}/{other-options}?search-term
+        /// </summary>
+        /// <param name="route"></param>
+        private RequestCallback? FindRoute(string route)
+            => routeCallbacks.Where(x => route.StartsWith(x.Item1))
+                .Select(x => x.Item2).FirstOrDefault();
 
         /// <summary>
         /// Reads the request URL from the client.
