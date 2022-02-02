@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.810.15
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RocketForce", "RocketForce\RocketForce.csproj", "{829C8105-BFFA-47B7-BC94-64F1AE15D4DE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RocketForceExample", "RocketForceExample\RocketForceExample.csproj", "{62F60965-2BEC-4F32-9BC2-23239750433D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{829C8105-BFFA-47B7-BC94-64F1AE15D4DE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{829C8105-BFFA-47B7-BC94-64F1AE15D4DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{829C8105-BFFA-47B7-BC94-64F1AE15D4DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{829C8105-BFFA-47B7-BC94-64F1AE15D4DE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{62F60965-2BEC-4F32-9BC2-23239750433D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{62F60965-2BEC-4F32-9BC2-23239750433D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{62F60965-2BEC-4F32-9BC2-23239750433D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{62F60965-2BEC-4F32-9BC2-23239750433D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C3C0DD8E-9A51-4183-B5E5-9C67958BFA36}
+	EndGlobalSection
+EndGlobal
