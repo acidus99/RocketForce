@@ -38,6 +38,9 @@ namespace RocketForce
             Write($"30 {url}\r\n");
         }
 
+        public void Write(byte[] data)
+            => fout.Write(data);
+
         public void Write(string text)
             => Write(text, Encoding.UTF8);
 
