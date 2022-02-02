@@ -22,8 +22,6 @@ namespace RocketForce
 
         private readonly TcpListener _listener = new TcpListener(IPAddress.Loopback, 1966);
         private readonly Dictionary<string, RequestCallback> _requestCallbacks = new Dictionary<string, RequestCallback>();
-        private readonly byte[] _buffer = new byte[4096];
-        private readonly Decoder _decoder = Encoding.UTF8.GetDecoder();
 
         private readonly X509Certificate2 _serverCertificate;
         private readonly ILogger<App> _logger;
