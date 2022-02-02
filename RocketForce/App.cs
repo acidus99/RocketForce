@@ -17,6 +17,9 @@ namespace RocketForce
 
     public class App
     {
+        //the request line is at most (1024 + 2) characters long. (max sized URL + CRLF)
+        const int MaxRequestSize = 1024 + 2;
+
         private readonly TcpListener _listener = new TcpListener(IPAddress.Loopback, 1966);
         private readonly Dictionary<string, RequestCallback> _requestCallbacks = new Dictionary<string, RequestCallback>();
         private readonly byte[] _buffer = new byte[4096];
@@ -159,18 +162,41 @@ namespace RocketForce
             response.Missing("Could not find a file or route for this URL");
         }
 
-        private string ReadRequest(SslStream sslStream)
+        /// <summary>
+        /// Reads the request URL from the client.
+        /// This looks complex, but allows for slow clients where the entire URL is not
+        /// available in a single read from the buffer
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns></returns>
+        private string ReadRequest(Stream stream)
         {
-            StringBuilder requestData = new StringBuilder();
-            int bytes = sslStream.Read(_buffer, 0, _buffer.Length);
-            char[] chars = new char[_decoder.GetCharCount(_buffer, 0, bytes)];
-            _decoder.GetChars(_buffer, 0, bytes, chars, 0);
-            string line = new string(chars);
-            if (line.EndsWith("\r\n"))
+            var requestBuffer = new List<byte>(MaxRequestSize);
+            byte[] readBuffer = { 0 };
+
+            int readCount = 0;
+            while (stream.Read(readBuffer, 0, 1) == 1)
             {
-                return line.TrimEnd('\r', '\n');
+                if (readBuffer[0] == (byte)'\r')
+                {
+                    //spec requires a \n next
+                    stream.Read(readBuffer, 0, 1);
+                    if (readBuffer[0] != (byte)'\n')
+                    {
+                        throw new ApplicationException("Malformed Gemini request - missing LF after CR");
+                    }
+                    break;
+                }
+                //keep going if we haven't read too many
+                readCount++;
+                if (readCount > MaxRequestSize)
+                {
+                    throw new ApplicationException($"Invalid gemini request line. Did not find \\r\\n within {MaxRequestSize} bytes");
+                }
+                requestBuffer.Add(readBuffer[0]);
             }
-            return null;
+            //spec requires request use UTF-8
+            return Encoding.UTF8.GetString(requestBuffer.ToArray());
         }
     }
 }
