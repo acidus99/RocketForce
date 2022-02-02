@@ -28,7 +28,6 @@ namespace RocketForce
         private readonly X509Certificate2 _serverCertificate;
         private readonly ILogger<App> _logger;
 
-        private RequestCallback _onBadRequestCallback;
         StaticFileModule FileModule;
 
         public App(string directoryToServe, X509Certificate2 certificate, ILogger<App> logger)
@@ -44,11 +43,6 @@ namespace RocketForce
         public void OnRequest(string route, RequestCallback callback)
         {
             _requestCallbacks.Add(route, callback);
-        }
-
-        public void OnBadRequest(RequestCallback callback)
-        {
-            _onBadRequestCallback = callback;
         }
 
         public void Run()
@@ -142,8 +136,7 @@ namespace RocketForce
             _logger.LogDebug("\tRemote IP: \"{0}\"", request.RemoteIP);
             _logger.LogDebug("\tBaseURL: \"{0}\"", request.Url.NormalizedUrl);
             _logger.LogDebug("\tRoute: \"{0}\"", request.Route);
-
-
+            
             //look for a programmatic route and execute if found
             RequestCallback callback;
             _requestCallbacks.TryGetValue(request.Route, out callback);
