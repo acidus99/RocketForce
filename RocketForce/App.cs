@@ -73,8 +73,9 @@ namespace RocketForce
             SslStream sslStream = null;
             try
             {
+                var remoteIP = getClientIP(client);
                 sslStream = new SslStream(client.GetStream(), false);
-                ProcessRequest(sslStream);
+                ProcessRequest(remoteIP, sslStream);
             }
             catch (AuthenticationException e)
             {
@@ -96,7 +97,19 @@ namespace RocketForce
             }
         }
 
-        private void ProcessRequest(SslStream sslStream)
+        /// <summary>
+        /// attempts to get the IP address of the remote client
+        /// </summary>
+        private string getClientIP(TcpClient client)
+        {
+            if (client.Client.RemoteEndPoint != null && (client.Client.RemoteEndPoint is IPEndPoint))
+            {
+                return (client.Client.RemoteEndPoint as IPEndPoint).Address.ToString();
+            }
+            return "unknown";
+        }
+
+        private void ProcessRequest(string remoteIP, SslStream sslStream)
         {
             sslStream.ReadTimeout = 5000;
             sslStream.AuthenticateAsServer(_serverCertificate, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
@@ -130,6 +143,7 @@ namespace RocketForce
             var request = new Request
             {
                 Url = url,
+                RemoteIP = remoteIP
             };
 
             _logger.LogDebug("Request info:");
