@@ -10,4 +10,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Gemini.Net\Gemini.Net.csproj" />
+  </ItemGroup>
 </Project>
