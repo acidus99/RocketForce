@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Security.Cryptography.X509Certificates;
 
-namespace CuipodExample
+namespace RocketForceExample
 {
     class Server
     {

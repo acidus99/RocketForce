@@ -10,7 +10,7 @@ using System.IO;
 
 using Microsoft.Extensions.Logging;
 
-namespace Cuipod
+namespace RocketForce
 {
     using RequestCallback = System.Action<Cuipod.Request, Cuipod.Response, ILogger<App>>;
 
