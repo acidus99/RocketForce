@@ -1,5 +1,5 @@
 # RocketForce
-RocketForce is Gemini Server in .NET. It can serve static files and supports application development via callback functions on specific routes.
+RocketForce is a [Gemini](https://gemini.circumlunar.space/docs/) Server in .NET. It can serve static files and supports application development via callback functions on specific routes. It is written in .NET 5 and supports Windows, Linux, and macOS.
 
 ![Gemini III, first crewed mission, launching into space](gemini-iii-launch.jpg)
 
