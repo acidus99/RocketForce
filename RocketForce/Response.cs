@@ -13,30 +13,26 @@ namespace RocketForce
             fout = respStream;
         }
 
-        public void Success(string mimeType = "text/gemini")
-        {
-            Write($"20 {mimeType}\r\n");
-        }
-
         public void Input(string prompt)
-        {
-            Write($"10 {prompt}\r\n");
-        }
+            => WriteStatusLine(10, prompt);
 
-        public void BadRequest(string msg)
-        {
-            Write($"59 {msg}\r\n");
-        }
-
-        public void Missing(string msg)
-        {
-            Write($"51 {msg}\r\n");
-        }
+        public void Success(string mimeType = "text/gemini")
+            => WriteStatusLine(20, mimeType);
 
         public void Redirect(string url)
-        {
-            Write($"30 {url}\r\n");
-        }
+            => WriteStatusLine(30, url);
+
+        public void Missing(string msg)
+            => WriteStatusLine(51, msg);
+
+        public void ProxyRefused()
+            => WriteStatusLine(53, "Will not proxy requests for other hosts/ports");
+
+        public void BadRequest(string msg)
+            => WriteStatusLine(59, msg);
+
+        private void WriteStatusLine(int statusCode, string msg)
+            => Write($"{statusCode} {msg}\r\n");
 
         public void Write(byte[] data)
             => fout.Write(data);
@@ -45,12 +41,9 @@ namespace RocketForce
             => Write(text, Encoding.UTF8);
 
         public void Write(string text, Encoding encoding)
-        {
-            fout.Write(encoding.GetBytes(text));
-        }
+            => fout.Write(encoding.GetBytes(text));
 
         public void WriteLine(string text = "")
             => Write(text + "\n", Encoding.UTF8);
-
     }
 }
