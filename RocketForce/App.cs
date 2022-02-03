@@ -22,7 +22,7 @@ namespace RocketForce
         //the request line is at most (1024 + 2) characters long. (max sized URL + CRLF)
         const int MaxRequestSize = 1024 + 2;
 
-        private readonly TcpListener _listener = new TcpListener(IPAddress.Loopback, 1966);
+        private readonly TcpListener _listener;
 
         readonly List<Tuple<string, RequestCallback>> routeCallbacks;
 
@@ -32,8 +32,10 @@ namespace RocketForce
 
         StaticFileModule FileModule;
 
-        public App(string directoryToServe, X509Certificate2 certificate, ILogger<App> logger)
+        public App(IPAddress bindingAddress, int port, string directoryToServe, X509Certificate2 certificate, ILogger<App> logger)
         {
+
+            _listener = new TcpListener(bindingAddress, port);
             routeCallbacks =  new List<Tuple<string, RequestCallback>>();
 
             _serverCertificate = certificate;

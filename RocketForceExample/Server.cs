@@ -1,8 +1,8 @@
-﻿using RocketForce;
-using Microsoft.Extensions.CommandLineUtils;
+﻿using System;
+using System.Net;
+
 using Microsoft.Extensions.Logging;
-using System;
-using System.Security.Cryptography.X509Certificates;
+using RocketForce;
 
 namespace RocketForceExample
 {
@@ -24,6 +24,8 @@ namespace RocketForceExample
             ILogger<App> logger = loggerFactory.CreateLogger<App>();
 
             App app = new App(
+                IPAddress.Loopback,
+                1965,
                 $"{capsulePath}/public_root",
                 CertificateUtils.LoadCertificate($"{capsulePath}/certs/localhost.crt", $"{capsulePath}/certs/localhost.key"),
                 logger
