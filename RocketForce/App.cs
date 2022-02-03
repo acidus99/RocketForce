@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 
 namespace RocketForce
 {
-    using RequestCallback = System.Action<Request, Response, ILogger<App>>;
+    using RequestCallback = System.Action<Request, Response, App>;
 
     public class App
     {
@@ -26,7 +26,8 @@ namespace RocketForce
         readonly List<Tuple<string, RequestCallback>> routeCallbacks;
 
         private readonly X509Certificate2 _serverCertificate;
-        private readonly ILogger<App> _logger;
+
+        public ILogger<App> Logger { get; private set; }
 
         StaticFileModule FileModule;
 
@@ -35,7 +36,7 @@ namespace RocketForce
             routeCallbacks =  new List<Tuple<string, RequestCallback>>();
 
             _serverCertificate = certificate;
-            _logger = logger;
+            Logger = logger;
 
             if (!String.IsNullOrEmpty(directoryToServe))
             {
@@ -52,7 +53,7 @@ namespace RocketForce
             {
                 _listener.Start();
 
-                _logger.LogInformation("Serving capsule on {0}", _listener.Server.LocalEndPoint.ToString());
+                Logger.LogInformation("Serving capsule on {0}", _listener.Server.LocalEndPoint.ToString());
 
                 while (true)
                 {
@@ -61,7 +62,7 @@ namespace RocketForce
             }
             catch (SocketException e)
             {
-                _logger.LogError("SocketException: {0}", e);
+                Logger.LogError("SocketException: {0}", e);
             }
             finally
             {
@@ -80,16 +81,16 @@ namespace RocketForce
             }
             catch (AuthenticationException e)
             {
-                _logger.LogError("AuthenticationException: {0}", e.Message);
+                Logger.LogError("AuthenticationException: {0}", e.Message);
                 if (e.InnerException != null)
                 {
-                    _logger.LogError("Inner exception: {0}", e.InnerException.Message);
+                    Logger.LogError("Inner exception: {0}", e.InnerException.Message);
                 }
-                _logger.LogError("Authentication failed - closing the connection.");
+                Logger.LogError("Authentication failed - closing the connection.");
             }
             catch (IOException e)
             {
-                _logger.LogError("IOException: {0}", e.Message);
+                Logger.LogError("IOException: {0}", e.Message);
             }
             finally
             {
@@ -122,12 +123,12 @@ namespace RocketForce
 
             if (rawRequest == null)
             {
-                _logger.LogDebug("Could not read incoming URL");
+                Logger.LogDebug("Could not read incoming URL");
                 response.BadRequest("Missing URL");
                 return;
             }
 
-            _logger.LogDebug("Raw request: \"{0}\"", rawRequest);
+            Logger.LogDebug("Raw request: \"{0}\"", rawRequest);
 
             GeminiUrl url = null;
             try
@@ -136,7 +137,7 @@ namespace RocketForce
             }
             catch (Exception)
             {
-                _logger.LogDebug("Requested URL is invalid");
+                Logger.LogDebug("Requested URL is invalid");
                 response.BadRequest("Invalid URL");
                 return;
             }
@@ -147,23 +148,23 @@ namespace RocketForce
                 RemoteIP = remoteIP
             };
 
-            _logger.LogDebug("Request info:");
-            _logger.LogDebug("\tRemote IP: \"{0}\"", request.RemoteIP);
-            _logger.LogDebug("\tBaseURL: \"{0}\"", request.Url.NormalizedUrl);
-            _logger.LogDebug("\tRoute: \"{0}\"", request.Route);
+            Logger.LogDebug("Request info:");
+            Logger.LogDebug("\tRemote IP: \"{0}\"", request.RemoteIP);
+            Logger.LogDebug("\tBaseURL: \"{0}\"", request.Url.NormalizedUrl);
+            Logger.LogDebug("\tRoute: \"{0}\"", request.Route);
 
             //First look if this request matches a route...
             var callback = FindRoute(request.Route);
             if (callback != null)
             {
-                callback(request, response, _logger);
+                callback(request, response, this);
                 return;
             }
 
             //nope... look to see if we are handling file system requests
             if (FileModule != null)
             {
-                FileModule.HandleRequest(request, response, _logger);
+                FileModule.HandleRequest(request, response, Logger);
                 return;
             }
             //nope, return a not found

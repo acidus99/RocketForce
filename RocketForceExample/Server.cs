@@ -29,7 +29,7 @@ namespace RocketForceExample
                 logger
             );
 
-            app.OnRequest("/hello", (request, response, logger) => {
+            app.OnRequest("/hello", (request, response, app) => {
                 response.Success();
                 response.Write($"# Hello there! The time is now {DateTime.Now}");
             });
