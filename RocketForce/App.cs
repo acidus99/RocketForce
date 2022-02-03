@@ -8,6 +8,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Security.Authentication;
 using System.IO;
+using System.Threading.Tasks;
 
 using Gemini.Net;
 using Microsoft.Extensions.Logging;
@@ -52,12 +53,12 @@ namespace RocketForce
             try
             {
                 _listener.Start();
-
                 Logger.LogInformation("Serving capsule on {0}", _listener.Server.LocalEndPoint.ToString());
 
                 while (true)
                 {
-                    ProcessRequest(_listener.AcceptTcpClient());
+                    var client = _listener.AcceptTcpClient();
+                    Task.Run(() => ProcessRequest(client));
                 }
             }
             catch (SocketException e)
