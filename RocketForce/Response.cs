@@ -49,5 +49,8 @@ namespace RocketForce
             fout.Write(encoding.GetBytes(text));
         }
 
+        public void WriteLine(string text = "")
+            => Write(text + "\n", Encoding.UTF8);
+
     }
 }
