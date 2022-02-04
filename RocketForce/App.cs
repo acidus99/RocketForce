@@ -57,6 +57,7 @@ namespace RocketForce
         {
             try
             {
+                DisplayLaunchBanner();
                 listener.Start();
                 Logger?.LogInformation("Serving capsule on {0}", listener.Server.LocalEndPoint.ToString());
 
@@ -75,6 +76,31 @@ namespace RocketForce
                 listener.Stop();
             }
         }
+
+        private void DisplayLaunchBanner()
+        {
+            Console.WriteLine("3... 2... 1...");
+            Console.WriteLine(
+@"    ____             __        __  ______                     ______
+   / __ \____  _____/ /_____  / /_/ ____/___  _____________  / / / /
+  / /_/ / __ \/ ___/ //_/ _ \/ __/ /_  / __ \/ ___/ ___/ _ \/ / / / 
+ / _, _/ /_/ / /__/ ,< /  __/ /_/ __/ / /_/ / /  / /__/  __/_/_/_/  
+/_/ |_|\____/\___/_/|_|\___/\__/_/    \____/_/   \___/\___(_|_|_)   
+                                                                    ");
+
+            Console.WriteLine("Gemini Server");
+            Console.WriteLine("https://github.com/acidus99/RocketForce");
+            Console.WriteLine();
+            Console.WriteLine($"Hostname:\t{hostname}");
+            Console.WriteLine($"Port:\t\t{port}");
+            Console.WriteLine($"Public Root:\t{fileModule?.PublicRoot ?? "Not serving static files "}");
+            Console.WriteLine($"Route Handlers ({routeCallbacks.Count}):");
+            foreach(var route in routeCallbacks.Select(x=>x.Item1))
+            {
+                Console.WriteLine($"    Route: {route}");
+            }
+        }
+
 
         private void ProcessRequest(TcpClient client)
         {
