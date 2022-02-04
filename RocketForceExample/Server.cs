@@ -12,6 +12,22 @@ namespace RocketForceExample
         {
             string capsulePath = "/var/gemini/capsule";
 
+
+            //Define the app
+            App app = new App(
+                "localhost",
+                1965,
+                $"{capsulePath}/public_root",
+                CertificateUtils.LoadCertificate($"{capsulePath}/certs/localhost.crt", $"{capsulePath}/certs/localhost.key")
+            );
+
+            //add some dynamic route handlers
+            app.OnRequest("/hello", (request, response, app) => {
+                response.Success();
+                response.Write($"# Hello there! The time is now {DateTime.Now}");
+            });
+
+            //external loggers are supported but optional
             using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
                 builder.AddSimpleConsole(options =>
                 {
@@ -20,21 +36,9 @@ namespace RocketForceExample
                 })
                 .SetMinimumLevel(LogLevel.Debug)
             );
+            app.Logger = loggerFactory.CreateLogger<App>();
 
-            ILogger<App> logger = loggerFactory.CreateLogger<App>();
-
-            App app = new App(
-                "localhost",
-                1965,
-                $"{capsulePath}/public_root",
-                CertificateUtils.LoadCertificate($"{capsulePath}/certs/localhost.crt", $"{capsulePath}/certs/localhost.key"),
-                logger
-            );
-
-            app.OnRequest("/hello", (request, response, app) => {
-                response.Success();
-                response.Write($"# Hello there! The time is now {DateTime.Now}");
-            });
+            //start the app listening
             app.Run();
 
             return 0;
