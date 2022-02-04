@@ -121,7 +121,6 @@ namespace RocketForce
         {
             sslStream.ReadTimeout = 5000;
             sslStream.AuthenticateAsServer(serverCertificate, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
-            sslStream.NegotiatedCipherSuite == TlsCipherSuite.
 
             string rawRequest = null;
             var response = new Response(sslStream);
