@@ -28,14 +28,17 @@ namespace RocketForce
 
         private readonly X509Certificate2 _serverCertificate;
 
-        public ILogger<App> Logger { get; private set; }
+        /// <summary>
+        /// Optional external logger
+        /// </summary>
+        public ILogger<App> Logger { get; set; }
 
         StaticFileModule FileModule;
 
         string Hostname;
         int Port;
 
-        public App(string hostname, int port, string directoryToServe, X509Certificate2 certificate, ILogger<App> logger)
+        public App(string hostname, int port, string directoryToServe, X509Certificate2 certificate)
         {
             Hostname = hostname;
             Port = port;
@@ -43,7 +46,6 @@ namespace RocketForce
             routeCallbacks =  new List<Tuple<string, RequestCallback>>();
 
             _serverCertificate = certificate;
-            Logger = logger;
 
             if (!String.IsNullOrEmpty(directoryToServe))
             {
@@ -59,7 +61,7 @@ namespace RocketForce
             try
             {
                 _listener.Start();
-                Logger.LogInformation("Serving capsule on {0}", _listener.Server.LocalEndPoint.ToString());
+                Logger?.LogInformation("Serving capsule on {0}", _listener.Server.LocalEndPoint.ToString());
 
                 while (true)
                 {
@@ -69,7 +71,7 @@ namespace RocketForce
             }
             catch (SocketException e)
             {
-                Logger.LogError("SocketException: {0}", e);
+                Logger?.LogError("SocketException: {0}", e);
             }
             finally
             {
@@ -88,16 +90,16 @@ namespace RocketForce
             }
             catch (AuthenticationException e)
             {
-                Logger.LogError("AuthenticationException: {0}", e.Message);
+                Logger?.LogError("AuthenticationException: {0}", e.Message);
                 if (e.InnerException != null)
                 {
-                    Logger.LogError("Inner exception: {0}", e.InnerException.Message);
+                    Logger?.LogError("Inner exception: {0}", e.InnerException.Message);
                 }
-                Logger.LogError("Authentication failed - closing the connection.");
+                Logger?.LogError("Authentication failed - closing the connection.");
             }
             catch (IOException e)
             {
-                Logger.LogError("IOException: {0}", e.Message);
+                Logger?.LogError("IOException: {0}", e.Message);
             }
             finally
             {
@@ -122,6 +124,7 @@ namespace RocketForce
         {
             sslStream.ReadTimeout = 5000;
             sslStream.AuthenticateAsServer(_serverCertificate, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
+            sslStream.NegotiatedCipherSuite == TlsCipherSuite.
 
             string rawRequest = null;
             var response = new Response(sslStream);
@@ -149,10 +152,10 @@ namespace RocketForce
                 RemoteIP = remoteIP
             };
 
-            Logger.LogDebug("Request info:");
-            Logger.LogDebug("\tRemote IP: \"{0}\"", request.RemoteIP);
-            Logger.LogDebug("\tBaseURL: \"{0}\"", request.Url.NormalizedUrl);
-            Logger.LogDebug("\tRoute: \"{0}\"", request.Route);
+            Logger?.LogDebug("Request info:");
+            Logger?.LogDebug("\tRemote IP: \"{0}\"", request.RemoteIP);
+            Logger?.LogDebug("\tBaseURL: \"{0}\"", request.Url.NormalizedUrl);
+            Logger?.LogDebug("\tRoute: \"{0}\"", request.Route);
 
             //First look if this request matches a route...
             var callback = FindRoute(request.Route);
@@ -187,12 +190,12 @@ namespace RocketForce
 
             if (rawRequest == null)
             {
-                Logger.LogDebug("Could not read incoming URL");
+                Logger?.LogDebug("Could not read incoming URL");
                 response.BadRequest("Missing URL");
                 return null;
             }
 
-            Logger.LogDebug("Raw request: \"{0}\"", rawRequest);
+            Logger?.LogDebug("Raw request: \"{0}\"", rawRequest);
 
             Uri plainUrl = null;
             try {

@@ -20,7 +20,7 @@ namespace RocketForce
             attemptedPath = HandleDefaultFile(attemptedPath);
             if(!attemptedPath.StartsWith(PublicRoot))
             {
-                logger.LogCritical("Security issue! Attempt to escape public root!");
+                logger?.LogCritical("Security issue! Attempt to escape public root!");
                 response.BadRequest("invalid request");
                 return;
             }
