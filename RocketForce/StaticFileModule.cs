@@ -8,10 +8,9 @@ namespace RocketForce
     {
         public string PublicRoot { get; set; } = "";
 
-
-        public StaticFileModule(string path)
+        public StaticFileModule(string publicRootPath)
         {
-            PublicRoot = path;
+            PublicRoot = publicRootPath;
         }
 
         public void HandleRequest(Request request, Response response, ILogger<App> logger)

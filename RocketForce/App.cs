@@ -22,34 +22,31 @@ namespace RocketForce
         //the request line is at most (1024 + 2) characters long. (max sized URL + CRLF)
         const int MaxRequestSize = 1024 + 2;
 
-        private readonly TcpListener _listener;
-
-        readonly List<Tuple<string, RequestCallback>> routeCallbacks;
-
-        private readonly X509Certificate2 _serverCertificate;
-
         /// <summary>
         /// Optional external logger
         /// </summary>
         public ILogger<App> Logger { get; set; }
 
-        StaticFileModule FileModule;
+        private readonly X509Certificate2 serverCertificate;
+        private readonly List<Tuple<string, RequestCallback>> routeCallbacks;
+        private readonly TcpListener listener;
 
-        string Hostname;
-        int Port;
+        private StaticFileModule fileModule;
+        private string hostname;
+        private int port;
 
-        public App(string hostname, int port, string directoryToServe, X509Certificate2 certificate)
+        public App(string hostname, int port, string publicRootPath, X509Certificate2 certificate)
         {
-            Hostname = hostname;
-            Port = port;
-            _listener = TcpListener.Create(port);
+            this.hostname = hostname;
+            this.port = port;
+            listener = TcpListener.Create(port);
             routeCallbacks =  new List<Tuple<string, RequestCallback>>();
 
-            _serverCertificate = certificate;
+            serverCertificate = certificate;
 
-            if (!String.IsNullOrEmpty(directoryToServe))
+            if (!String.IsNullOrEmpty(publicRootPath))
             {
-                FileModule = new StaticFileModule(directoryToServe);
+                fileModule = new StaticFileModule(publicRootPath);
             }
         }
 
@@ -60,22 +57,22 @@ namespace RocketForce
         {
             try
             {
-                _listener.Start();
-                Logger?.LogInformation("Serving capsule on {0}", _listener.Server.LocalEndPoint.ToString());
+                listener.Start();
+                Logger?.LogInformation("Serving capsule on {0}", listener.Server.LocalEndPoint.ToString());
 
                 while (true)
                 {
-                    var client = _listener.AcceptTcpClient();
+                    var client = listener.AcceptTcpClient();
                     Task.Run(() => ProcessRequest(client));
                 }
             }
-            catch (SocketException e)
+            catch (Exception e)
             {
-                Logger?.LogError("SocketException: {0}", e);
+                Logger?.LogError(e, $"Uncaught Exception: {e.Message}");
             }
             finally
             {
-                _listener.Stop();
+                listener.Stop();
             }
         }
 
@@ -123,7 +120,7 @@ namespace RocketForce
         private void ProcessRequest(string remoteIP, SslStream sslStream)
         {
             sslStream.ReadTimeout = 5000;
-            sslStream.AuthenticateAsServer(_serverCertificate, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
+            sslStream.AuthenticateAsServer(serverCertificate, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
             sslStream.NegotiatedCipherSuite == TlsCipherSuite.
 
             string rawRequest = null;
@@ -166,9 +163,9 @@ namespace RocketForce
             }
 
             //nope... look to see if we are handling file system requests
-            if (FileModule != null)
+            if (fileModule != null)
             {
-                FileModule.HandleRequest(request, response, Logger);
+                fileModule.HandleRequest(request, response, Logger);
                 return;
             }
             //nope, return a not found
@@ -181,7 +178,6 @@ namespace RocketForce
         /// </summary>
         private GeminiUrl ValidateRequest(string rawRequest, Response response)
         {
-
             GeminiUrl ret = null;
 
             //The order of these checks, and the status codes they return, may seem odd
@@ -231,7 +227,7 @@ namespace RocketForce
                 return null;
             }
 
-            if(ret.Hostname != Hostname || ret.Port != Port)
+            if(ret.Hostname != hostname || ret.Port != port)
             {
                 response.ProxyRefused("hosts or ports");
                 return null;
