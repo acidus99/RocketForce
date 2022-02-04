@@ -32,10 +32,14 @@ namespace RocketForce
 
         StaticFileModule FileModule;
 
-        public App(IPAddress bindingAddress, int port, string directoryToServe, X509Certificate2 certificate, ILogger<App> logger)
-        {
+        string Hostname;
+        int Port;
 
-            _listener = new TcpListener(bindingAddress, port);
+        public App(string hostname, int port, string directoryToServe, X509Certificate2 certificate, ILogger<App> logger)
+        {
+            Hostname = hostname;
+            Port = port;
+            _listener = TcpListener.Create(port);
             routeCallbacks =  new List<Tuple<string, RequestCallback>>();
 
             _serverCertificate = certificate;
@@ -119,29 +123,23 @@ namespace RocketForce
             sslStream.ReadTimeout = 5000;
             sslStream.AuthenticateAsServer(_serverCertificate, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
 
-            // Read a message from the client.
-            string rawRequest = ReadRequest(sslStream);
-
+            string rawRequest = null;
             var response = new Response(sslStream);
 
-            if (rawRequest == null)
+            try
             {
-                Logger.LogDebug("Could not read incoming URL");
-                response.BadRequest("Missing URL");
+                // Read a message from the client.
+                rawRequest = ReadRequest(sslStream);
+            } catch(ApplicationException ex)
+            {
+                response.BadRequest(ex.Message);
                 return;
             }
 
-            Logger.LogDebug("Raw request: \"{0}\"", rawRequest);
-
-            GeminiUrl url = null;
-            try
+            GeminiUrl url = ValidateRequest(rawRequest, response);
+            if(url == null)
             {
-                url = new GeminiUrl(rawRequest);
-            }
-            catch (Exception)
-            {
-                Logger.LogDebug("Requested URL is invalid");
-                response.BadRequest("Invalid URL");
+                //we already reported the appropriate status to the client, exit
                 return;
             }
 
@@ -175,6 +173,72 @@ namespace RocketForce
         }
 
         /// <summary>
+        /// Validates the raw gemini request. If not, writes the appropriate errors on the response object and returns null
+        /// if valid, returns GeminiUrl object
+        /// </summary>
+        private GeminiUrl ValidateRequest(string rawRequest, Response response)
+        {
+
+            GeminiUrl ret = null;
+
+            //The order of these checks, and the status codes they return, may seem odd
+            //and are organized to pass the gemini-diagnostics check
+            //https://github.com/michael-lazar/gemini-diagnostics
+
+            if (rawRequest == null)
+            {
+                Logger.LogDebug("Could not read incoming URL");
+                response.BadRequest("Missing URL");
+                return null;
+            }
+
+            Logger.LogDebug("Raw request: \"{0}\"", rawRequest);
+
+            Uri plainUrl = null;
+            try {
+                plainUrl = new Uri(rawRequest);
+            } catch(Exception)
+            {
+                response.BadRequest("Invalid URL");
+                return null;
+            }
+
+            //Silly .NET URI will parse "/" as a "file" scheme with a "/" path! crazy
+            //and say it is absolute. So explicitly look for :// to determine if absolute 
+            if(!rawRequest.Contains("://"))
+            {
+                response.BadRequest("Relative URLs not allowed");
+                return null;
+            }
+
+            if(plainUrl.Scheme != "gemini")
+            {
+                //refuse to proxy to other protocols
+                response.ProxyRefused("protocols");
+                return null;
+            }
+            
+            try
+            {
+                ret = new GeminiUrl(rawRequest);
+            }
+            catch (Exception)
+            {
+                response.BadRequest("Invalid URL");
+                return null;
+            }
+
+            if(ret.Hostname != Hostname || ret.Port != Port)
+            {
+                response.ProxyRefused("hosts or ports");
+                return null;
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
         /// Finds the first callback that registered for a route
         /// We use "starts with" because we need to support routes that use parts of the path
         /// to pass variables/state (e.g. /search/{language}/{other-options}?search-term
@@ -205,7 +269,7 @@ namespace RocketForce
                     stream.Read(readBuffer, 0, 1);
                     if (readBuffer[0] != (byte)'\n')
                     {
-                        throw new ApplicationException("Malformed Gemini request - missing LF after CR");
+                        throw new ApplicationException("Invalid Request. Request line missing LF after CR");
                     }
                     break;
                 }
@@ -213,9 +277,14 @@ namespace RocketForce
                 readCount++;
                 if (readCount > MaxRequestSize)
                 {
-                    throw new ApplicationException($"Invalid gemini request line. Did not find \\r\\n within {MaxRequestSize} bytes");
+                    throw new ApplicationException($"Invalid Request. Did not find CRLF within {MaxRequestSize} bytes of request line");
                 }
                 requestBuffer.Add(readBuffer[0]);
+            }
+            //the URL itself should not be longer than the max size minus the trailing CRLF
+            if(requestBuffer.Count > MaxRequestSize - 2)
+            {
+                throw new ApplicationException($"Invalid Request. URL exceeds {MaxRequestSize - 2}");
             }
             //spec requires request use UTF-8
             return Encoding.UTF8.GetString(requestBuffer.ToArray());

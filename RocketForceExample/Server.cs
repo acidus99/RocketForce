@@ -24,7 +24,7 @@ namespace RocketForceExample
             ILogger<App> logger = loggerFactory.CreateLogger<App>();
 
             App app = new App(
-                IPAddress.Loopback,
+                "localhost",
                 1965,
                 $"{capsulePath}/public_root",
                 CertificateUtils.LoadCertificate($"{capsulePath}/certs/localhost.crt", $"{capsulePath}/certs/localhost.key"),

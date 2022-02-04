@@ -25,8 +25,8 @@ namespace RocketForce
         public void Missing(string msg)
             => WriteStatusLine(51, msg);
 
-        public void ProxyRefused()
-            => WriteStatusLine(53, "Will not proxy requests for other hosts/ports");
+        public void ProxyRefused(string msg)
+            => WriteStatusLine(53, $"Will not proxy requests for other {msg}");
 
         public void BadRequest(string msg)
             => WriteStatusLine(59, msg);
