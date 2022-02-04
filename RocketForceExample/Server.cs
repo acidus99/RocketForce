@@ -12,7 +12,6 @@ namespace RocketForceExample
         {
             string capsulePath = "/var/gemini/capsule";
 
-
             //Define the app
             App app = new App(
                 "localhost",
