@@ -33,7 +33,7 @@ namespace RocketForceExample
                     options.SingleLine = true;
                     options.TimestampFormat = "hh:mm:ss ";
                 })
-                .SetMinimumLevel(LogLevel.Debug)
+                .SetMinimumLevel(LogLevel.Warning)
             );
             app.Logger = loggerFactory.CreateLogger<App>();
 
