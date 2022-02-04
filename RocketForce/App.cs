@@ -27,6 +27,11 @@ namespace RocketForce
         /// </summary>
         public ILogger<App> Logger { get; set; }
 
+        /// <summary>
+        /// Should we mask IPs of remote clients
+        /// </summary>
+        public bool IsMaskingRemoteIPs { get; set; } = true;
+
         private readonly X509Certificate2 serverCertificate;
         private readonly List<Tuple<string, RequestCallback>> routeCallbacks;
         private readonly TcpListener listener;
@@ -132,15 +137,15 @@ namespace RocketForce
         }
 
         /// <summary>
-        /// attempts to get the IP address of the remote client
+        /// attempts to get the IP address of the remote client, or mask it
         /// </summary>
         private string getClientIP(TcpClient client)
         {
-            if (client.Client.RemoteEndPoint != null && (client.Client.RemoteEndPoint is IPEndPoint))
+            if (!IsMaskingRemoteIPs && client.Client.RemoteEndPoint != null && (client.Client.RemoteEndPoint is IPEndPoint))
             {
                 return (client.Client.RemoteEndPoint as IPEndPoint).Address.ToString();
             }
-            return "unknown";
+            return "-";
         }
 
         private void ProcessRequest(string remoteIP, SslStream sslStream)
