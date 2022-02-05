@@ -9,7 +9,9 @@ RocketForce provides many features beyond existing .NET gemini servers:
 - IPv4 and IPv6 clients
 - Serves static files (without needing a specific route per file)
 - Default files (e.g. `/directory/` will serve `/directory/index.gmi`)
-- Support text and binary files
 - Streaming output to the client (vs buffering until entire response is generated)
+- Privacy first! PII like client IP addresses not logged by default
+- access.log support with Apache access.log-ish format
+- Support text and binary files
 
 RocketForce is [inspired by JetForce](https://github.com/michael-lazar/jetforce). RocketForce started as a heavily modified version of [Cuipod](https://github.com/aegis-dev/cuipod)
