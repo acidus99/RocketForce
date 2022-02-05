@@ -106,7 +106,8 @@ namespace RocketForce
             Console.WriteLine();
             Console.WriteLine($"Hostname:\t{hostname}");
             Console.WriteLine($"Port:\t\t{port}");
-            Console.WriteLine($"Public Root:\t{fileModule?.PublicRoot ?? "Not serving static files "}");
+            Console.WriteLine($"Access Log:\t{fileModule?.PublicRoot ?? "Not logging"}");
+            Console.WriteLine($"Public Root:\t{fileModule?.PublicRoot ?? "Not serving static files"}");
             Console.WriteLine($"Route Handlers ({routeCallbacks.Count}):");
             foreach(var route in routeCallbacks.Select(x=>x.Item1))
             {
