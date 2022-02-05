@@ -11,6 +11,7 @@ using System.IO;
 using System.Threading.Tasks;
 
 using Gemini.Net;
+using RocketForce.AccessLog;
 using Microsoft.Extensions.Logging;
 
 namespace RocketForce
@@ -36,15 +37,17 @@ namespace RocketForce
         private readonly List<Tuple<string, RequestCallback>> routeCallbacks;
         private readonly TcpListener listener;
 
+        private AccessLogger accessLogger;
         private StaticFileModule fileModule;
         private string hostname;
         private int port;
 
-        public App(string hostname, int port, string publicRootPath, X509Certificate2 certificate)
+        public App(string hostname, int port, string publicRootPath, X509Certificate2 certificate, string accessLogPath)
         {
             this.hostname = hostname;
             this.port = port;
             listener = TcpListener.Create(port);
+            accessLogger = new AccessLogger(accessLogPath);
             routeCallbacks =  new List<Tuple<string, RequestCallback>>();
 
             serverCertificate = certificate;
@@ -106,15 +109,16 @@ namespace RocketForce
             }
         }
 
-
         private void ProcessRequest(TcpClient client)
         {
             SslStream sslStream = null;
             try
             {
-                var remoteIP = getClientIP(client);
                 sslStream = new SslStream(client.GetStream(), false);
-                ProcessRequest(remoteIP, sslStream);
+                var received = DateTime.Now;
+                var remoteIP = getClientIP(client);
+                AccessRecord record = ProcessRequest(remoteIP, sslStream);
+                accessLogger.LogAccess(record, received);
             }
             catch (AuthenticationException e)
             {
@@ -148,29 +152,34 @@ namespace RocketForce
             return "-";
         }
 
-        private void ProcessRequest(string remoteIP, SslStream sslStream)
+        private AccessRecord ProcessRequest(string remoteIP, SslStream sslStream)
         {
             sslStream.ReadTimeout = 5000;
             sslStream.AuthenticateAsServer(serverCertificate, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
 
             string rawRequest = null;
             var response = new Response(sslStream);
+            var accessRecord = new AccessRecord
+            {
+                Response = response
+            };
 
             try
             {
                 // Read a message from the client.
                 rawRequest = ReadRequest(sslStream);
+                accessRecord.RawRequest = rawRequest;
             } catch(ApplicationException ex)
             {
                 response.BadRequest(ex.Message);
-                return;
+                return accessRecord;
             }
 
             GeminiUrl url = ValidateRequest(rawRequest, response);
             if(url == null)
             {
                 //we already reported the appropriate status to the client, exit
-                return;
+                return accessRecord; 
             }
 
             var request = new Request
@@ -178,6 +187,7 @@ namespace RocketForce
                 Url = url,
                 RemoteIP = remoteIP
             };
+            accessRecord.Request = request;
 
             Logger?.LogDebug("Request info:");
             Logger?.LogDebug("\tRemote IP: \"{0}\"", request.RemoteIP);
@@ -189,17 +199,18 @@ namespace RocketForce
             if (callback != null)
             {
                 callback(request, response, this);
-                return;
+                return accessRecord;
             }
 
             //nope... look to see if we are handling file system requests
             if (fileModule != null)
             {
                 fileModule.HandleRequest(request, response, Logger);
-                return;
+                return accessRecord;
             }
             //nope, return a not found
             response.Missing("Could not find a file or route for this URL");
+            return accessRecord;
         }
 
         /// <summary>

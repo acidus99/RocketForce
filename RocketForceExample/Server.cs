@@ -17,7 +17,8 @@ namespace RocketForceExample
                 "localhost",
                 1965,
                 $"{capsulePath}/public_root",
-                CertificateUtils.LoadCertificate($"{capsulePath}/certs/localhost.crt", $"{capsulePath}/certs/localhost.key")
+                CertificateUtils.LoadCertificate($"{capsulePath}/certs/localhost.crt", $"{capsulePath}/certs/localhost.key"),
+                "/var/gemini/capsule/logs/access.log"
             );
 
             //add some dynamic route handlers
