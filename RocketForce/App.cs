@@ -134,9 +134,11 @@ namespace RocketForce
                 }
                 Logger?.LogError("Authentication failed - closing the connection.");
             }
-            catch (IOException e)
+            //Ensure that an exception processing a request doesn't take down the whole server
+            catch (Exception e)
             {
-                Logger?.LogError("IOException: {0}", e.Message);
+
+                Logger?.LogError("Uncaught Exception in ProcessRequest! {0}", e.Message);
             }
             finally
             {
