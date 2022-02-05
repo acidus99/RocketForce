@@ -42,12 +42,12 @@ namespace RocketForce
         private string hostname;
         private int port;
 
-        public App(string hostname, int port, string publicRootPath, X509Certificate2 certificate, string accessLogPath)
+        public App(string hostname, int port, X509Certificate2 certificate, string publicRootPath = null, string accessLogPath = null)
         {
             this.hostname = hostname;
             this.port = port;
             listener = TcpListener.Create(port);
-            accessLogger = new AccessLogger(accessLogPath);
+
             routeCallbacks =  new List<Tuple<string, RequestCallback>>();
 
             serverCertificate = certificate;
@@ -56,6 +56,11 @@ namespace RocketForce
             {
                 fileModule = new StaticFileModule(publicRootPath);
             }
+            if (!String.IsNullOrEmpty(accessLogPath))
+            {
+                accessLogger = new AccessLogger(accessLogPath);
+            }
+
         }
 
         public void OnRequest(string route, RequestCallback callback)
@@ -118,7 +123,7 @@ namespace RocketForce
                 var received = DateTime.Now;
                 var remoteIP = getClientIP(client);
                 AccessRecord record = ProcessRequest(remoteIP, sslStream);
-                accessLogger.LogAccess(record, received);
+                accessLogger?.LogAccess(record, received);
             }
             catch (AuthenticationException e)
             {

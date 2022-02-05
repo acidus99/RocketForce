@@ -13,12 +13,14 @@ namespace RocketForceExample
             string capsulePath = "/var/gemini/capsule";
 
             //Define the app
+            //only required paramters are the hostname we are using, the port to bind to,
+            //and the certificate to use for TLS
             App app = new App(
                 "localhost",
                 1965,
-                $"{capsulePath}/public_root",
                 CertificateUtils.LoadCertificate($"{capsulePath}/certs/localhost.crt", $"{capsulePath}/certs/localhost.key"),
-                "/var/gemini/capsule/logs/access.log"
+                $"{capsulePath}/public_root",
+                $"{capsulePath}/logs/access.log"
             );
 
             //add some dynamic route handlers
