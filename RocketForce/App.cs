@@ -182,6 +182,8 @@ namespace RocketForce
                 return accessRecord;
             }
 
+            Logger?.LogDebug($"Raw incoming request: \"{rawRequest}\"");
+
             GeminiUrl url = ValidateRequest(rawRequest, response);
             if(url == null)
             {
@@ -196,9 +198,7 @@ namespace RocketForce
             };
             accessRecord.Request = request;
 
-            Logger?.LogDebug("Request info:");
-            Logger?.LogDebug("\tRemote IP: \"{0}\"", request.RemoteIP);
-            Logger?.LogDebug("\tBaseURL: \"{0}\"", request.Url.NormalizedUrl);
+            Logger?.LogDebug("\tParsed URL: \"{0}\"", request.Url.NormalizedUrl);
             Logger?.LogDebug("\tRoute: \"{0}\"", request.Route);
 
             //First look if this request matches a route...
