@@ -1,16 +1,22 @@
-﻿using System;
-using System.IO;
-using System.Net.Security;
+﻿using System.Net.Security;
 using System.Text;
 namespace RocketForce
 {
     public class Response
     {
+        public int StatusCode { get; private set; }
+        public string Meta { get; private set; }
+        /// <summary>
+        /// number of bytes sent to the client
+        /// </summary>
+        public int Length { get; private set; }
+
         readonly SslStream fout;
 
         public Response(SslStream respStream)
         {
             fout = respStream;
+            StatusCode = 0;
         }
 
         public void Input(string prompt)
@@ -32,16 +38,23 @@ namespace RocketForce
             => WriteStatusLine(59, msg);
 
         private void WriteStatusLine(int statusCode, string msg)
-            => Write($"{statusCode} {msg}\r\n");
+        {
+            StatusCode = statusCode;
+            Meta = msg;
+            Write($"{statusCode} {msg}\r\n");
+        }
 
         public void Write(byte[] data)
-            => fout.Write(data);
+        {
+            Length += data.Length;
+            fout.Write(data);
+        }
 
         public void Write(string text)
             => Write(text, Encoding.UTF8);
 
         public void Write(string text, Encoding encoding)
-            => fout.Write(encoding.GetBytes(text));
+            => Write(encoding.GetBytes(text));
 
         public void WriteLine(string text = "")
             => Write(text + "\n", Encoding.UTF8);
