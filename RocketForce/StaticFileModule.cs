@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Net;
 using Microsoft.Extensions.Logging;
 
 namespace RocketForce
@@ -15,7 +16,7 @@ namespace RocketForce
 
         public void HandleRequest(Request request, Response response, ILogger<App> logger)
         {
-            string attemptedPath = Path.GetFullPath("." + request.Url.Path, PublicRoot);
+            string attemptedPath = Path.GetFullPath("." + WebUtility.UrlDecode(request.Url.Path), PublicRoot);
             attemptedPath = HandleDefaultFile(attemptedPath);
             if(!attemptedPath.StartsWith(PublicRoot))
             {

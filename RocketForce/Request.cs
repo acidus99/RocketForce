@@ -1,4 +1,5 @@
 ﻿using Gemini.Net;
+using System.Net;
 
 namespace RocketForce
 {
@@ -6,6 +7,6 @@ namespace RocketForce
     {
         public string RemoteIP { get; set; }
         public GeminiUrl Url { get; set; }
-        public string Route => Url.Path.ToLower();
+        public string Route => WebUtility.UrlDecode(Url.Path).ToLower();
     }
 }
