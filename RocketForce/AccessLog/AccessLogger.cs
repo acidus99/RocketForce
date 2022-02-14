@@ -11,7 +11,7 @@ namespace RocketForce.AccessLog
         public AccessLogger(string filePath)
         {
             FilePath = filePath;
-            fout = new StreamWriter(FilePath);
+            fout = new StreamWriter(FilePath,true, System.Text.Encoding.UTF8);
         }
 
         public void LogAccess(AccessRecord record, DateTime received)
