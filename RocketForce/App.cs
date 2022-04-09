@@ -60,7 +60,6 @@ namespace RocketForce
             {
                 accessLogger = new AccessLogger(accessLogPath);
             }
-
         }
 
         public void OnRequest(string route, RequestCallback callback)
@@ -68,6 +67,12 @@ namespace RocketForce
        
         public void Run()
         {
+            if(serverCertificate == null)
+            {
+                Console.WriteLine("Could not Load Server Key/Certificate. Exiting.");
+                return;
+            }
+
             try
             {
                 DisplayLaunchBanner();
