@@ -22,7 +22,7 @@ namespace RocketForce
             routeCallbacks = new List<Tuple<string, RequestCallback>>();
             if (!String.IsNullOrEmpty(publicRootPath))
             {
-                fileModule = new StaticFileModule(publicRootPath);
+                fileModule = new StaticFileModule(publicRootPath, Logger);
             }
         }
 
@@ -39,7 +39,7 @@ namespace RocketForce
             else if (fileModule != null)
             {
                 //nope... look to see if we are handling file system requests
-                fileModule.HandleRequest(request, response, Logger);
+                fileModule.HandleRequest(request, response);
             }
             else
             {

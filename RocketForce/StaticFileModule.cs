@@ -9,18 +9,20 @@ namespace RocketForce
     {
         public string PublicRoot { get; set; } = "";
 
-        public StaticFileModule(string publicRootPath)
+        public ILogger Logger;
+        public StaticFileModule(string publicRootPath, ILogger logger)
         {
             PublicRoot = publicRootPath;
+            Logger = logger;
         }
 
-        public void HandleRequest(Request request, Response response, ILogger<AbstractGeminiApp> logger)
+        public void HandleRequest(Request request, Response response)
         {
             string attemptedPath = Path.GetFullPath("." + WebUtility.UrlDecode(request.Url.AbsolutePath), PublicRoot);
             attemptedPath = HandleDefaultFile(attemptedPath);
             if(!attemptedPath.StartsWith(PublicRoot))
             {
-                logger?.LogCritical("Security issue! Attempt to escape public root!");
+                Logger?.LogCritical("Security issue! Attempt to escape public root!");
                 response.BadRequest("invalid request");
                 return;
             }
