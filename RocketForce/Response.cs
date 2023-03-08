@@ -1,4 +1,5 @@
-﻿using System.Net.Security;
+﻿using System.IO;
+using System.Net.Security;
 using System.Text;
 namespace RocketForce
 {
@@ -37,11 +38,15 @@ namespace RocketForce
         public void BadRequest(string msg)
             => WriteStatusLine(59, msg);
 
-        private void WriteStatusLine(int statusCode, string msg)
+        public void Error(string msg)
+         => WriteStatusLine(40, msg);
+
+        public void WriteStatusLine(int statusCode, string msg = "")
         {
             StatusCode = statusCode;
             Meta = msg;
-            Write($"{statusCode} {msg}\r\n");
+            //don't use writeline since I need a full \r\n
+            Write(Encoding.UTF8.GetBytes($"{statusCode} {msg}\r\n"));
         }
 
         public void Write(byte[] data)
@@ -51,12 +56,23 @@ namespace RocketForce
         }
 
         public void Write(string text)
-            => Write(text, Encoding.UTF8);
+            => Write(Encoding.UTF8.GetBytes(text));
 
-        public void Write(string text, Encoding encoding)
-            => Write(encoding.GetBytes(text));
+        public void WriteLine(string text)
+            => Write(text + "\n");
 
-        public void WriteLine(string text = "")
-            => Write(text + "\n", Encoding.UTF8);
+        public void CopyFrom(Stream stream)
+        {
+            byte[] buffer = new byte[32 * 1024];
+
+            int read = 0;
+
+            do
+            {
+                read = stream.Read(buffer);
+                fout.Write(buffer, 0, read);
+                Length += read;
+            } while (read > 0);
+        }
     }
 }
