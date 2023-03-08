@@ -1,12 +1,12 @@
-﻿using Gemini.Net;
+﻿using System;
 using System.Net;
 
 namespace RocketForce
 {
     public class Request
     {
+        public DateTime Received { get; set; }
         public string RemoteIP { get; set; }
-        public GeminiUrl Url { get; set; }
-        public string Route => WebUtility.UrlDecode(Url.Path).ToLower();
+        public Uri Url { get; set; }
     }
 }

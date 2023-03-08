@@ -15,7 +15,7 @@ namespace RocketForceExample
             //Define the app
             //only required paramters are the hostname we are using, the port to bind to,
             //and the certificate to use for TLS
-            App app = new App(
+            GeminiServer app = new GeminiServer(
                 "localhost",
                 1965,
                 CertificateUtils.LoadCertificate($"{capsulePath}/certs/localhost.crt", $"{capsulePath}/certs/localhost.key"),
@@ -37,7 +37,7 @@ namespace RocketForceExample
                 })
                 .SetMinimumLevel(LogLevel.Warning)
             );
-            app.Logger = loggerFactory.CreateLogger<App>();
+            app.Logger = loggerFactory.CreateLogger<AbstractGeminiApp>();
 
             //start the app listening
             app.Run();

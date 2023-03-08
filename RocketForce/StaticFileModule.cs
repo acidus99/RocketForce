@@ -14,9 +14,9 @@ namespace RocketForce
             PublicRoot = publicRootPath;
         }
 
-        public void HandleRequest(Request request, Response response, ILogger<App> logger)
+        public void HandleRequest(Request request, Response response, ILogger<AbstractGeminiApp> logger)
         {
-            string attemptedPath = Path.GetFullPath("." + WebUtility.UrlDecode(request.Url.Path), PublicRoot);
+            string attemptedPath = Path.GetFullPath("." + WebUtility.UrlDecode(request.Url.AbsolutePath), PublicRoot);
             attemptedPath = HandleDefaultFile(attemptedPath);
             if(!attemptedPath.StartsWith(PublicRoot))
             {
