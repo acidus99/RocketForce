@@ -58,7 +58,7 @@ namespace RocketForce
         public void Write(string text)
             => Write(Encoding.UTF8.GetBytes(text));
 
-        public void WriteLine(string text)
+        public void WriteLine(string text = "")
             => Write(text + "\n");
 
         public void CopyFrom(Stream stream)
