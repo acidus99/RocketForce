@@ -11,7 +11,7 @@ using System.IO;
 using System.Threading.Tasks;
 
 using Gemini.Net;
-using RocketForce.AccessLog;
+using RocketForce.Logging;
 using Microsoft.Extensions.Logging;
 
 namespace RocketForce
@@ -37,16 +37,17 @@ namespace RocketForce
         private readonly List<Tuple<string, RequestCallback>> routeCallbacks;
         private readonly TcpListener listener;
 
-        private AccessLogger accessLogger;
+        private W3CLogger accessLogger;
         private StaticFileModule fileModule;
         private string hostname;
         private int port;
 
-        public App(string hostname, int port, X509Certificate2 certificate, string publicRootPath = null, string accessLogPath = null)
+        public App(string hostname, int port, X509Certificate2 certificate, string publicRootPath = null)
         {
             this.hostname = hostname;
             this.port = port;
             listener = TcpListener.Create(port);
+            accessLogger = new W3CLogger();
 
             routeCallbacks =  new List<Tuple<string, RequestCallback>>();
 
@@ -55,10 +56,6 @@ namespace RocketForce
             if (!String.IsNullOrEmpty(publicRootPath))
             {
                 fileModule = new StaticFileModule(publicRootPath);
-            }
-            if (!String.IsNullOrEmpty(accessLogPath))
-            {
-                accessLogger = new AccessLogger(accessLogPath);
             }
         }
 
@@ -128,8 +125,7 @@ namespace RocketForce
                 sslStream = new SslStream(client.GetStream(), false);
                 var received = DateTime.Now;
                 var remoteIP = getClientIP(client);
-                AccessRecord record = ProcessRequest(remoteIP, sslStream);
-                accessLogger?.LogAccess(record, received);
+                ProcessRequest(remoteIP, sslStream);
             }
             catch (AuthenticationException e)
             {
@@ -143,7 +139,6 @@ namespace RocketForce
             //Ensure that an exception processing a request doesn't take down the whole server
             catch (Exception e)
             {
-
                 Logger?.LogError("Uncaught Exception in ProcessRequest! {0}", e.Message);
             }
             finally
@@ -165,27 +160,78 @@ namespace RocketForce
             return "-";
         }
 
-        private AccessRecord ProcessRequest(string remoteIP, SslStream sslStream)
+        public void LogRequest(DateTime received, Request request, Response response)
+        {
+            var completed = DateTime.Now;
+
+            var record = new AccessRecord
+            {
+                Date = AccessRecord.FormatDate(received),
+                Time = AccessRecord.FormatTime(received),
+                RemoteIP = request.RemoteIP,
+                Url = request.Url.ToString(),
+                StatusCode = response.StatusCode.ToString(),
+                Meta = response.Meta,
+                SentBytes = response.Length.ToString(),
+                TimeTaken = AccessRecord.ComputeTimeTaken(received, completed)
+            };
+            accessLogger.LogAccess(record);
+        }
+
+        public void LogInvalidRequest(DateTime received, string remoteIP, Response response)
+        {
+            var completed = DateTime.Now;
+
+            var record = new AccessRecord
+            {
+                Date = AccessRecord.FormatDate(received),
+                Time = AccessRecord.FormatTime(received),
+                RemoteIP = remoteIP,
+                StatusCode = response.StatusCode.ToString(),
+                Meta = response.Meta,
+                SentBytes = response.Length.ToString(),
+                TimeTaken = AccessRecord.ComputeTimeTaken(received, completed)
+            };
+            accessLogger.LogAccess(record);
+        }
+
+        public void LogInvalidRequest(DateTime received, string remoteIP, string rawRequest, Response response)
+        {
+            var completed = DateTime.Now;
+
+            var record = new AccessRecord
+            {
+                Date = AccessRecord.FormatDate(received),
+                Time = AccessRecord.FormatTime(received),
+                RemoteIP = remoteIP,
+                Url = AccessRecord.Sanitize(rawRequest, false),
+                StatusCode = response.StatusCode.ToString(),
+                Meta = response.Meta,
+                SentBytes = response.Length.ToString(),
+                TimeTaken = AccessRecord.ComputeTimeTaken(received, completed)
+            };
+            accessLogger.LogAccess(record);
+        }
+
+
+        private void ProcessRequest(string remoteIP, SslStream sslStream)
         {
             sslStream.ReadTimeout = 5000;
             sslStream.AuthenticateAsServer(serverCertificate, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
 
             string rawRequest = null;
             var response = new Response(sslStream);
-            var accessRecord = new AccessRecord
-            {
-                Response = response
-            };
-
+            var received = DateTime.Now;
             try
             {
                 // Read a message from the client.
                 rawRequest = ReadRequest(sslStream);
-                accessRecord.RawRequest = rawRequest;
-            } catch(ApplicationException ex)
+            }
+            catch (ApplicationException ex)
             {
                 response.BadRequest(ex.Message);
-                return accessRecord;
+                LogInvalidRequest(received, remoteIP, response);
+                return;
             }
 
             Logger?.LogDebug($"Raw incoming request: \"{rawRequest}\"");
@@ -193,8 +239,10 @@ namespace RocketForce
             GeminiUrl url = ValidateRequest(rawRequest, response);
             if(url == null)
             {
-                //we already reported the appropriate status to the client, exit
-                return accessRecord; 
+                //we already populated the response object and reported the
+                //appropriate status to the client, so we can exit
+                LogInvalidRequest(received, remoteIP, rawRequest, response);
+                return;
             }
 
             var request = new Request
@@ -202,7 +250,6 @@ namespace RocketForce
                 Url = url,
                 RemoteIP = remoteIP
             };
-            accessRecord.Request = request;
 
             Logger?.LogDebug("\tParsed URL: \"{0}\"", request.Url.NormalizedUrl);
             Logger?.LogDebug("\tRoute: \"{0}\"", request.Route);
@@ -212,18 +259,18 @@ namespace RocketForce
             if (callback != null)
             {
                 callback(request, response, this);
-                return accessRecord;
             }
-
-            //nope... look to see if we are handling file system requests
-            if (fileModule != null)
+            else if (fileModule != null)
             {
+                //nope... look to see if we are handling file system requests
                 fileModule.HandleRequest(request, response, Logger);
-                return accessRecord;
             }
-            //nope, return a not found
-            response.Missing("Could not find a file or route for this URL");
-            return accessRecord;
+            else
+            {
+                //nope, return a not found
+                response.Missing("Could not find a file or route for this URL");
+            }
+            LogRequest(received, request, response);
         }
 
         /// <summary>
