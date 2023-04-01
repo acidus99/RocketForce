@@ -51,8 +51,11 @@ namespace RocketForce
 
         public void Write(byte[] data)
         {
-            Length += data.Length;
-            fout.Write(data);
+            if (data != null)
+            {
+                Length += data.Length;
+                fout.Write(data);
+            }
         }
 
         public void Write(string text)
