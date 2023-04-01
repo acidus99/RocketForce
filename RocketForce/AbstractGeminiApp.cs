@@ -23,11 +23,6 @@ namespace RocketForce
         const int MaxRequestSize = 1024 + 2;
 
         /// <summary>
-        /// Optional external logger
-        /// </summary>
-        public ILogger<AbstractGeminiApp> Logger { get; set; }
-
-        /// <summary>
         /// Should we mask IPs of remote clients
         /// </summary>
         public bool IsMaskingRemoteIPs { get; set; } = true;
@@ -59,7 +54,6 @@ namespace RocketForce
             try
             {
                 listener.Start();
-                Logger?.LogInformation("Serving capsule on {0}", listener.Server.LocalEndPoint.ToString());
                 while (true)
                 {
                     var client = listener.AcceptTcpClient();
@@ -68,7 +62,7 @@ namespace RocketForce
             }
             catch (Exception e)
             {
-                Logger?.LogError(e, $"Uncaught Exception: {e.Message}");
+                Console.WriteLine($"Exception in Run(): {e.Message}");
             }
             finally
             {
@@ -88,17 +82,13 @@ namespace RocketForce
             }
             catch (AuthenticationException e)
             {
-                Logger?.LogError("AuthenticationException: {0}", e.Message);
-                if (e.InnerException != null)
-                {
-                    Logger?.LogError("Inner exception: {0}", e.InnerException.Message);
-                }
-                Logger?.LogError("Authentication failed - closing the connection.");
+                //ignore ssl issues
             }
             //Ensure that an exception processing a request doesn't take down the whole server
             catch (Exception e)
             {
-                Logger?.LogError("Uncaught Exception in ProcessRequest! {0}", e.Message);
+                Console.WriteLine("Uncaught Exception in ProcessRequest! {0}", e.Message);
+                Console.WriteLine(e.StackTrace);
             }
             finally
             {
@@ -191,8 +181,6 @@ namespace RocketForce
                 LogInvalidRequest(received, remoteIP, response);
                 return;
             }
-
-            Logger?.LogDebug($"Raw incoming request: \"{rawRequest}\"");
 
             Uri url = ValidateRequest(rawRequest, response);
             if (url == null)

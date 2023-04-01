@@ -22,7 +22,7 @@ namespace RocketForce
             routeCallbacks = new List<Tuple<string, RequestCallback>>();
             if (!String.IsNullOrEmpty(publicRootPath))
             {
-                fileModule = new StaticFileModule(publicRootPath, Logger);
+                fileModule = new StaticFileModule(publicRootPath);
             }
         }
 

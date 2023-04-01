@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Net;
-using Microsoft.Extensions.Logging;
 
 namespace RocketForce
 {
@@ -9,11 +8,9 @@ namespace RocketForce
     {
         public string PublicRoot { get; set; } = "";
 
-        public ILogger Logger;
-        public StaticFileModule(string publicRootPath, ILogger logger)
+        public StaticFileModule(string publicRootPath)
         {
             PublicRoot = publicRootPath;
-            Logger = logger;
         }
 
         public void HandleRequest(Request request, Response response)
@@ -22,7 +19,7 @@ namespace RocketForce
             attemptedPath = HandleDefaultFile(attemptedPath);
             if(!attemptedPath.StartsWith(PublicRoot))
             {
-                Logger?.LogCritical("Security issue! Attempt to escape public root!");
+                Console.WriteLine("Security issue! Attempt to escape public root!");
                 response.BadRequest("invalid request");
                 return;
             }
