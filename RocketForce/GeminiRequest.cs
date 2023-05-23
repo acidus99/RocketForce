@@ -5,11 +5,11 @@ using Gemini.Net;
 
 namespace RocketForce
 {
-	public class GeminiRequest
+	public record GeminiRequest
 	{
-        public DateTime Received { get; set; }
-        public string RemoteIP { get; set; }
-        public GeminiUrl Url { get; set; }
+        public required DateTime Received { get; init; }
+        public required string RemoteIP { get; init; }
+        public required GeminiUrl Url { get; init; }
         public string Route => WebUtility.UrlDecode(Url.Path).ToLower();
     }
 }

@@ -72,28 +72,24 @@ namespace RocketForce
 
         private void ProcessRequest(TcpClient client)
         {
-            SslStream sslStream = null;
             try
             {
-                sslStream = new SslStream(client.GetStream(), false);
-                var received = DateTime.Now;
-                var remoteIP = getClientIP(client);
-                ProcessRequest(remoteIP, sslStream);
+                using (var sslStream = new SslStream(client.GetStream(), false))
+                {
+                    var received = DateTime.Now;
+                    var remoteIP = getClientIP(client);
+                    ProcessRequest(remoteIP, sslStream);
+                }
             }
-            catch (AuthenticationException e)
+            catch (AuthenticationException)
             {
-                //ignore ssl issues
+                //ignore any SSL issues
             }
             //Ensure that an exception processing a request doesn't take down the whole server
             catch (Exception e)
             {
                 Console.WriteLine("Uncaught Exception in ProcessRequest! {0}", e.Message);
                 Console.WriteLine(e.StackTrace);
-            }
-            finally
-            {
-                sslStream.Close();
-                client.Close();
             }
         }
 
@@ -104,7 +100,7 @@ namespace RocketForce
         {
             if (!IsMaskingRemoteIPs && client.Client.RemoteEndPoint != null && (client.Client.RemoteEndPoint is IPEndPoint))
             {
-                return (client.Client.RemoteEndPoint as IPEndPoint).Address.ToString();
+                return (client.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "-";
             }
             return "-";
         }
@@ -167,13 +163,13 @@ namespace RocketForce
             sslStream.ReadTimeout = 5000;
             sslStream.AuthenticateAsServer(serverCertificate, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
 
-            string rawRequest = null;
+            string rawRequest = null!;
             var response = new Response(sslStream);
             var received = DateTime.Now;
             try
             {
                 // Read a message from the client.
-                rawRequest = ReadRequest(sslStream);
+                rawRequest = ReadRequestLine(sslStream);
             }
             catch (ApplicationException ex)
             {
@@ -182,7 +178,7 @@ namespace RocketForce
                 return;
             }
 
-            Uri url = ValidateRequest(rawRequest, response);
+            Uri? url = ValidateRequest(rawRequest, response);
             if (url == null)
             {
                 //we already populated the response object and reported the
@@ -207,10 +203,8 @@ namespace RocketForce
         /// errors on the response object and returns null. if valid, returns
         /// GeminiUrl object
         /// </summary>
-        private Uri ValidateRequest(string rawRequest, Response response)
+        private Uri? ValidateRequest(string rawRequest, Response response)
         {
-
-            Uri requestUrl = null;
 
             //The order of these checks, and the status codes they return, may seem odd
             //but are organized to pass the gemini-diagnostics check
@@ -221,6 +215,7 @@ namespace RocketForce
                 return null;
             }
 
+            Uri requestUrl;
             try
             {
                 requestUrl = new Uri(rawRequest);
@@ -266,13 +261,13 @@ namespace RocketForce
         }
 
         /// <summary>
-        /// Reads the request URL from the client.
+        /// Reads the request line URL from the client.
         /// This looks complex, but allows for slow clients where the entire URL is not
         /// available in a single read from the buffer
         /// </summary>
         /// <param name="stream"></param>
         /// <returns></returns>
-        private string ReadRequest(Stream stream)
+        private string ReadRequestLine(Stream stream)
         {
             var requestBuffer = new List<byte>(MaxRequestSize);
             byte[] readBuffer = { 0 };

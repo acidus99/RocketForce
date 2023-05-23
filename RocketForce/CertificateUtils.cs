@@ -8,7 +8,10 @@ namespace RocketForce
 {
     public static class CertificateUtils
     {
-        static public X509Certificate2 LoadCertificate(string certFilePath, string privateRSAKeyFilePath)
+        /// <summary>
+        /// Attempts to load an RSA or ECDSA certificate.
+        /// </summary>
+        public static X509Certificate2 LoadCertificate(string certFilePath, string privateRSAKeyFilePath)
         {
             X509Certificate2 cert = new X509Certificate2(certFilePath);
             string[] lines = File.ReadAllLines(privateRSAKeyFilePath, Encoding.UTF8);
@@ -31,10 +34,9 @@ namespace RocketForce
                 return new X509Certificate2(pubPrivEphemeral.Export(X509ContentType.Pfx));
             } catch(Exception)
             {
-
             }
 
-            //try RSA
+            //try ECDSA
             try
             {
                 ECDsa ecdsa = ECDsa.Create();
@@ -47,11 +49,8 @@ namespace RocketForce
             }
             catch (Exception)
             {
-
             }
-
-
-            return null;
+            throw new ApplicationException("Could not load valid certificate");
         }
     }
 }

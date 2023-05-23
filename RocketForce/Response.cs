@@ -18,6 +18,7 @@ namespace RocketForce
         {
             fout = respStream;
             StatusCode = 0;
+            Meta = "";
         }
 
         public void Input(string prompt)
@@ -54,7 +55,14 @@ namespace RocketForce
             if (data != null)
             {
                 Length += data.Length;
-                fout.Write(data);
+                try
+                {
+                    fout.Write(data);
+                } catch(IOException)
+                {
+                    // If the user navigated away from this while a page was still loading,
+                    // we can get a broken pipe exception here. Ignore it
+                }
             }
         }
 
