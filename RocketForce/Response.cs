@@ -30,6 +30,9 @@ namespace RocketForce
         public void Redirect(string url)
             => WriteStatusLine(30, url);
 
+        public void RedirectPermanent(string url)
+            => WriteStatusLine(31, url);
+
         public void Missing(string msg)
             => WriteStatusLine(51, msg);
 
