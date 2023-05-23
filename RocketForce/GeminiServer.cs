@@ -7,19 +7,21 @@ using Gemini.Net;
 
 namespace RocketForce
 {
-
     using RequestCallback = System.Action<GeminiRequest, Response, GeminiServer>;
 
     public class GeminiServer : AbstractGeminiApp
     {
         private readonly List<Tuple<string, RequestCallback>> routeCallbacks;
 
-        private StaticFileModule fileModule;
+        private readonly List<Tuple<string, string>> redirects;
 
-        public GeminiServer(string hostname, int port, X509Certificate2 certificate, string publicRootPath = null)
+        private StaticFileModule? fileModule;
+
+        public GeminiServer(string hostname, int port, X509Certificate2 certificate, string? publicRootPath = null)
             : base(hostname, port, certificate)
         {
             routeCallbacks = new List<Tuple<string, RequestCallback>>();
+            redirects = new List<Tuple<string, string>>();
             if (!String.IsNullOrEmpty(publicRootPath))
             {
                 fileModule = new StaticFileModule(publicRootPath);
@@ -35,17 +37,25 @@ namespace RocketForce
             if (callback != null)
             {
                 callback(geminiRequest, response, this);
+                return;
             }
-            else if (fileModule != null)
+
+            var redirect = FindRedirect(geminiRequest.Url);
+            if(redirect != null)
+            {
+                response.Redirect(redirect);
+                return;
+            }
+
+            if (fileModule != null)
             {
                 //nope... look to see if we are handling file system requests
                 fileModule.HandleRequest(request, response);
+                return;
             }
-            else
-            {
-                //nope, return a not found
-                response.Missing("Could not find a file or route for this URL");
-            }
+            
+            //nope, return a not found
+            response.Missing("Could not find a file or route for this URL");
         }
 
         private GeminiRequest CreateGeminiRequest(Request request)
@@ -97,6 +107,9 @@ namespace RocketForce
         public void OnRequest(string route, RequestCallback callback)
            => routeCallbacks.Add(new Tuple<string, RequestCallback>(route.ToLower(), callback));
 
+        public void AddRedirect(string urlPrefix, string targetUri)
+            => redirects.Add(new Tuple<string, string>(urlPrefix, targetUri));
+
         /// <summary>
         /// Finds the first callback that registered for a route
         /// We use "starts with" because we need to support routes that use parts of the path
@@ -107,5 +120,10 @@ namespace RocketForce
             => routeCallbacks.Where(x => route.StartsWith(x.Item1))
                 .Select(x => x.Item2).FirstOrDefault();
 
+        private string? FindRedirect(GeminiUrl url)
+            => redirects
+                .Where(x => url.Path.StartsWith(x.Item1))
+                .Select(x => x.Item2)
+                .FirstOrDefault();
     }
 }
