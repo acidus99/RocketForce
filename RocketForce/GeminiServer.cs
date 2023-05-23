@@ -13,7 +13,7 @@ namespace RocketForce
     {
         private readonly List<Tuple<string, RequestCallback>> routeCallbacks;
 
-        private readonly List<Tuple<string, string>> redirects;
+        private readonly List<Redirect> redirects;
 
         private StaticFileModule? fileModule;
 
@@ -21,7 +21,7 @@ namespace RocketForce
             : base(hostname, port, certificate)
         {
             routeCallbacks = new List<Tuple<string, RequestCallback>>();
-            redirects = new List<Tuple<string, string>>();
+            redirects = new List<Redirect>();
             if (!String.IsNullOrEmpty(publicRootPath))
             {
                 fileModule = new StaticFileModule(publicRootPath);
@@ -43,7 +43,14 @@ namespace RocketForce
             var redirect = FindRedirect(geminiRequest.Url);
             if(redirect != null)
             {
-                response.Redirect(redirect);
+                if (redirect.IsTemporary)
+                {
+                    response.Redirect(redirect.TargetUrl);
+                }
+                else
+                {
+                    response.RedirectPermanent(redirect.TargetUrl);
+                }
                 return;
             }
 
@@ -107,8 +114,8 @@ namespace RocketForce
         public void OnRequest(string route, RequestCallback callback)
            => routeCallbacks.Add(new Tuple<string, RequestCallback>(route.ToLower(), callback));
 
-        public void AddRedirect(string urlPrefix, string targetUri)
-            => redirects.Add(new Tuple<string, string>(urlPrefix, targetUri));
+        public void AddRedirect(Redirect redirect)
+            => redirects.Add(redirect);
 
         /// <summary>
         /// Finds the first callback that registered for a route
@@ -120,10 +127,9 @@ namespace RocketForce
             => routeCallbacks.Where(x => route.StartsWith(x.Item1))
                 .Select(x => x.Item2).FirstOrDefault();
 
-        private string? FindRedirect(GeminiUrl url)
+        private Redirect? FindRedirect(GeminiUrl url)
             => redirects
-                .Where(x => url.Path.StartsWith(x.Item1))
-                .Select(x => x.Item2)
+                .Where(x => url.Path.StartsWith(x.UrlPrefix))
                 .FirstOrDefault();
     }
 }
