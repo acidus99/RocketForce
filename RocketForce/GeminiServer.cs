@@ -11,7 +11,7 @@ namespace RocketForce
 
     public class GeminiServer : AbstractGeminiApp
     {
-        private readonly List<Tuple<string, RequestCallback>> routeCallbacks;
+        private readonly List<Tuple<Route, RequestCallback>> routeCallbacks;
 
         private readonly List<Redirect> redirects;
 
@@ -20,7 +20,7 @@ namespace RocketForce
         public GeminiServer(string hostname, int port, X509Certificate2 certificate, string? publicRootPath = null)
             : base(hostname, port, certificate)
         {
-            routeCallbacks = new List<Tuple<string, RequestCallback>>();
+            routeCallbacks = new List<Tuple<Route, RequestCallback>>();
             redirects = new List<Redirect>();
             if (!String.IsNullOrEmpty(publicRootPath))
             {
@@ -112,7 +112,7 @@ namespace RocketForce
         }
 
         public void OnRequest(string route, RequestCallback callback)
-           => routeCallbacks.Add(new Tuple<string, RequestCallback>(route.ToLower(), callback));
+           => routeCallbacks.Add(new Tuple<Route, RequestCallback>(new Route(route), callback));
 
         public void AddRedirect(Redirect redirect)
             => redirects.Add(redirect);
@@ -124,7 +124,7 @@ namespace RocketForce
         /// </summary>
         /// <param name="route"></param>
         private RequestCallback? FindRoute(string route)
-            => routeCallbacks.Where(x => route.StartsWith(x.Item1))
+            => routeCallbacks.Where(x => x.Item1.IsMatch(route))
                 .Select(x => x.Item2).FirstOrDefault();
 
         private Redirect? FindRedirect(GeminiUrl url)
