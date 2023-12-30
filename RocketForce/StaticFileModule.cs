@@ -16,6 +16,13 @@ namespace RocketForce
         public void HandleRequest(Request request, Response response)
         {
             string attemptedPath = Path.GetFullPath("." + WebUtility.UrlDecode(request.Url.AbsolutePath), PublicRoot);
+
+            if(IsDirectoryWithoutSlash(attemptedPath))
+            {
+                response.Redirect(AppendDirectorySlash(request.Url));
+                return;
+            }
+
             attemptedPath = HandleDefaultFile(attemptedPath);
             if(!attemptedPath.StartsWith(PublicRoot))
             {
@@ -31,6 +38,19 @@ namespace RocketForce
             }
 
             response.Missing("Cannot locate file for URL");
+        }
+
+        private bool IsDirectoryWithoutSlash(string attemptedPath)
+            => (Directory.Exists(attemptedPath) && !attemptedPath.EndsWith(Path.DirectorySeparatorChar));
+
+        private string AppendDirectorySlash(Uri uri)
+        {
+            string url = uri.AbsolutePath + "/";
+            if(uri.Query.Length > 1)
+            {
+                url += uri.Query;
+            }
+            return url;
         }
 
         /// <summary>
