@@ -161,7 +161,13 @@ namespace RocketForce
         private void ProcessRequest(string remoteIP, SslStream sslStream)
         {
             sslStream.ReadTimeout = 5000;
-            sslStream.AuthenticateAsServer(serverCertificate, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
+            try
+            {
+                sslStream.AuthenticateAsServer(serverCertificate, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
+            } catch(Exception)
+            {
+                return;
+            }
 
             string rawRequest = null!;
             var response = new Response(sslStream);
