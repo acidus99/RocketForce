@@ -24,6 +24,12 @@ public abstract class AbstractGeminiApp
     /// </summary>
     public bool IsMaskingRemoteIPs { get; set; } = true;
 
+    /// <summary>
+    /// Is this server executing on localhost? This isn't the most robust check.
+    /// Any 127.* address is technically local host.It also doesn't work for IPv6.
+    public bool IsLocalHost
+        => hostname == "127.0.0.1" || hostname == "localhost";
+
     private readonly X509Certificate2 serverCertificate;
     private readonly TcpListener listener;
 
