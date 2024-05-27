@@ -8,7 +8,7 @@ namespace RocketForce;
 
 using RequestCallback = System.Action<GeminiRequest, Response, GeminiServer>;
 
-using ExceptionCallback = System.Action<GeminiRequest, Response, Exception>;
+using ExceptionCallback = System.Action<GeminiRequest, Response, GeminiServer, Exception>;
 
 public class GeminiServer : AbstractGeminiApp
 {
@@ -45,7 +45,7 @@ public class GeminiServer : AbstractGeminiApp
             }
             catch (Exception ex)
             {
-                ExceptionCallback(geminiRequest, response, ex);
+                ExceptionCallback(geminiRequest, response, this, ex);
             }
 
             return;
@@ -76,8 +76,11 @@ public class GeminiServer : AbstractGeminiApp
         response.Missing("Could not find a file or route for this URL");
     }
 
-    public static void DefaultExceptionCallback(GeminiRequest request, Response response, Exception ex)
+    public static void DefaultExceptionCallback(GeminiRequest request, Response response, GeminiServer server, Exception ex)
     {
+        //output to the console so the error still shows up in logs
+        Console.WriteLine($"Unhandled Exception Callback: {ex.Message}");
+
         if (response.IsSending)
         {
             //response already in flight, so clear any existing line and add a new one
@@ -87,9 +90,10 @@ public class GeminiServer : AbstractGeminiApp
             response.WriteLine("An unhandled error occurred while processing this URL.");
             response.WriteLine($"* URL: {request.Url}");
             response.WriteLine($"* Error: {ex.Message}");
-            if (ex.StackTrace != null)
+            if (ex.StackTrace != null && server.IsLocalHost)
             {
                 response.WriteLine("```");
+                response.WriteLine(ex.StackTrace);
                 response.WriteLine("```");
             }
         }
