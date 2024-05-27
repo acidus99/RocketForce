@@ -8,6 +8,8 @@ namespace RocketForce;
 
 using RequestCallback = System.Action<GeminiRequest, Response, GeminiServer>;
 
+using ExceptionCallback = System.Action<GeminiRequest, Response, Exception>;
+
 public class GeminiServer : AbstractGeminiApp
 {
     private readonly List<Tuple<Route, RequestCallback>> routeCallbacks;
@@ -15,6 +17,8 @@ public class GeminiServer : AbstractGeminiApp
     private readonly List<Redirect> redirects;
 
     private StaticFileModule? fileModule;
+
+    public ExceptionCallback ExceptionCallback { get; set; } = DefaultExceptionCallback;
 
     public GeminiServer(string hostname, int port, X509Certificate2 certificate, string? publicRootPath = null)
         : base(hostname, port, certificate)
@@ -35,7 +39,15 @@ public class GeminiServer : AbstractGeminiApp
         var callback = FindRoute(geminiRequest.Route);
         if (callback != null)
         {
-            callback(geminiRequest, response, this);
+            try
+            {
+                callback(geminiRequest, response, this);
+            }
+            catch (Exception ex)
+            {
+                ExceptionCallback(geminiRequest, response, ex);
+            }
+
             return;
         }
 
@@ -62,6 +74,29 @@ public class GeminiServer : AbstractGeminiApp
 
         //nope, return a not found
         response.Missing("Could not find a file or route for this URL");
+    }
+
+    public static void DefaultExceptionCallback(GeminiRequest request, Response response, Exception ex)
+    {
+        if (response.IsSending)
+        {
+            //response already in flight, so clear any existing line and add a new one
+            response.WriteLine();
+            response.WriteLine();
+            response.WriteLine("# ERROR!");
+            response.WriteLine("An unhandled error occurred while processing this URL.");
+            response.WriteLine($"* URL: {request.Url}");
+            response.WriteLine($"* Error: {ex.Message}");
+            if (ex.StackTrace != null)
+            {
+                response.WriteLine("```");
+                response.WriteLine("```");
+            }
+        }
+        else
+        {
+            response.BadRequest($"Error! Unhandled Exception: {ex.Message}");
+        }
     }
 
     private GeminiRequest CreateGeminiRequest(Request request)
