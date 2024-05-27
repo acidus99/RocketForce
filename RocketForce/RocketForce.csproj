@@ -14,9 +14,9 @@
     <PackageReference Include="Microsoft.Extensions.Logging" Version="7.0.0" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Gemini.Net\Gemini.Net.csproj" />
+    <Folder Include="Logging\" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Logging\" />
+    <ProjectReference Include="..\..\Gemini.Net\src\Gemini.Net.csproj" />
   </ItemGroup>
 </Project>
