@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Net.Security;
 using System.Text;
 
@@ -12,6 +13,11 @@ public class Response
     /// number of bytes sent to the client
     /// </summary>
     public int Length { get; private set; }
+
+    /// <summary>
+    /// Has this response already started to be sent?
+    /// </summary>
+    public bool IsSending => (Length > 0);
 
     readonly SslStream fout;
 
@@ -48,6 +54,11 @@ public class Response
 
     public void WriteStatusLine(int statusCode, string msg = "")
     {
+        if(IsSending)
+        {
+            throw new ApplicationException("Attempted to write another status line for an already in-flight response");
+        }
+
         StatusCode = statusCode;
         Meta = msg;
         //don't use writeline since I need a full \r\n
