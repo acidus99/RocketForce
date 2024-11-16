@@ -14,37 +14,37 @@ namespace RocketForce;
 
 public abstract class AbstractGeminiApp
 {
-    public abstract void ProcessRequest(Request request, Response response);
-
-        //the request line is at most (1024 + 2) characters long. (max sized URL + CRLF)
-    const int MaxRequestSize = 1024 + 2;
-
-    /// <summary>
-    /// Should we mask IPs of remote clients
-    /// </summary>
-    public bool IsMaskingRemoteIPs { get; set; } = true;
-
-    /// <summary>
-    /// Is this server executing on localhost? This isn't the most robust check.
-    /// Any 127.* address is technically local host.It also doesn't work for IPv6.
-    public bool IsLocalHost
-        => hostname == "127.0.0.1" || hostname == "localhost";
-
-    private readonly X509Certificate2 serverCertificate;
+    //the request line is at most (1024 + 2) characters long. (max sized URL + CRLF)
+    private const int MaxRequestSize = 1024 + 2;
     private readonly TcpListener listener;
 
-    private W3CLogger accessLogger;
-    protected string hostname;
-    protected int port;
+    private readonly X509Certificate2 serverCertificate;
+
+    private readonly W3CLogger accessLogger;
+    public string Hostname { get; init; }
+    public int Port { get; init; }
 
     public AbstractGeminiApp(string hostname, int port, X509Certificate2 certificate)
     {
-        this.hostname = hostname;
-        this.port = port;
+        Hostname = hostname;
+        Port = port;
         listener = TcpListener.Create(port);
         accessLogger = new W3CLogger();
         serverCertificate = certificate;
     }
+
+    /// <summary>
+    ///     Should we mask IPs of remote clients
+    /// </summary>
+    public bool IsMaskingRemoteIPs { get; set; } = true;
+
+    /// <summary>
+    ///     Is this server executing on localhost? This isn't the most robust check.
+    ///     Any 127.* address is technically local host.It also doesn't work for IPv6.
+    public bool IsLocalHost
+        => Hostname == "127.0.0.1" || Hostname == "localhost";
+
+    public abstract void ProcessRequest(Request request, Response response);
 
     public void Run()
     {
@@ -75,36 +75,41 @@ public abstract class AbstractGeminiApp
 
     private void ProcessRequest(TcpClient client)
     {
+        var remoteIp = "-";
         try
         {
             using (var sslStream = new SslStream(client.GetStream(), false))
             {
                 var received = DateTime.Now;
-                var remoteIP = getClientIP(client);
-                ProcessRequest(remoteIP, sslStream);
+                remoteIp = GetClientIp(client);
+                ProcessRequest(remoteIp, sslStream);
+                sslStream.ShutdownAsync().GetAwaiter().GetResult();
             }
         }
-        catch (AuthenticationException)
+        catch (AuthenticationException ex)
         {
-            //ignore any SSL issues
+            //ignore any SSL issues or half completed handshakes
+            LogException(remoteIp, $"Authentication Exception during SSL handshake: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            //ignore any SSL issues or half completed handshakes
+            LogException(remoteIp, $"Premature client close during handshake?: {ex.Message}");
         }
         //Ensure that an exception processing a request doesn't take down the whole server
-        catch (Exception e)
+        catch (Exception ex)
         {
-            Console.WriteLine("Uncaught Exception in ProcessRequest! {0}", e.Message);
-            Console.WriteLine(e.StackTrace);
+            LogException(remoteIp, "Uncaught Exception in ProcessRequest", ex);
         }
     }
 
     /// <summary>
-    /// attempts to get the IP address of the remote client, or mask it
+    ///     attempts to get the IP address of the remote client, or mask it
     /// </summary>
-    private string getClientIP(TcpClient client)
+    private string GetClientIp(TcpClient client)
     {
-        if (!IsMaskingRemoteIPs && client.Client.RemoteEndPoint != null && (client.Client.RemoteEndPoint is IPEndPoint))
-        {
+        if (!IsMaskingRemoteIPs && client.Client.RemoteEndPoint != null && client.Client.RemoteEndPoint is IPEndPoint)
             return (client.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "-";
-        }
         return "-";
     }
 
@@ -116,7 +121,7 @@ public abstract class AbstractGeminiApp
         {
             Date = AccessRecord.FormatDate(request.Received),
             Time = AccessRecord.FormatTime(request.Received),
-            RemoteIP = request.RemoteIP,
+            RemoteIP = request.RemoteIP ,
             Url = request.Url.ToString(),
             StatusCode = response.StatusCode.ToString(),
             Meta = response.Meta,
@@ -126,7 +131,12 @@ public abstract class AbstractGeminiApp
         accessLogger.LogAccess(record);
     }
 
-    public void LogInvalidRequest(DateTime received, string remoteIP, Response response)
+    public void LogException(string remoteIp, string what, Exception? ex = null)
+    {
+        accessLogger.LogException(remoteIp, what, ex);
+    }
+
+    public void LogInvalidRequest(DateTime received, string remoteIp, Response response)
     {
         var completed = DateTime.Now;
 
@@ -134,7 +144,7 @@ public abstract class AbstractGeminiApp
         {
             Date = AccessRecord.FormatDate(received),
             Time = AccessRecord.FormatTime(received),
-            RemoteIP = remoteIP,
+            RemoteIP  = remoteIp,
             StatusCode = response.StatusCode.ToString(),
             Meta = response.Meta,
             SentBytes = response.Length.ToString(),
@@ -143,7 +153,7 @@ public abstract class AbstractGeminiApp
         accessLogger.LogAccess(record);
     }
 
-    public void LogInvalidRequest(DateTime received, string remoteIP, string rawRequest, Response response)
+    public void LogInvalidRequest(DateTime received, string remoteIp, string rawRequest, Response response)
     {
         var completed = DateTime.Now;
 
@@ -151,7 +161,7 @@ public abstract class AbstractGeminiApp
         {
             Date = AccessRecord.FormatDate(received),
             Time = AccessRecord.FormatTime(received),
-            RemoteIP = remoteIP,
+            RemoteIP  = remoteIp,
             Url = AccessRecord.Sanitize(rawRequest, false),
             StatusCode = response.StatusCode.ToString(),
             Meta = response.Meta,
@@ -161,13 +171,14 @@ public abstract class AbstractGeminiApp
         accessLogger.LogAccess(record);
     }
 
-    private void ProcessRequest(string remoteIP, SslStream sslStream)
+    private void ProcessRequest(string remoteIp, SslStream sslStream)
     {
         sslStream.ReadTimeout = 5000;
         try
         {
             sslStream.AuthenticateAsServer(serverCertificate, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
-        } catch(Exception)
+        }
+        catch (Exception)
         {
             return;
         }
@@ -183,23 +194,23 @@ public abstract class AbstractGeminiApp
         catch (ApplicationException ex)
         {
             response.BadRequest(ex.Message);
-            LogInvalidRequest(received, remoteIP, response);
+            LogInvalidRequest(received, remoteIp, response);
             return;
         }
 
-        Uri? url = ValidateRequest(rawRequest, response);
+        var url = ValidateRequest(rawRequest, response);
         if (url == null)
         {
             //we already populated the response object and reported the
             //appropriate status to the client, so we can exit
-            LogInvalidRequest(received, remoteIP, rawRequest, response);
+            LogInvalidRequest(received, remoteIp, rawRequest, response);
             return;
         }
 
         var request = new Request
         {
             Url = url,
-            RemoteIP = remoteIP,
+            RemoteIP  = remoteIp,
             Received = received
         };
 
@@ -208,13 +219,12 @@ public abstract class AbstractGeminiApp
     }
 
     /// <summary>
-    /// Validates the raw gemini request. If not, writes the appropriate
-    /// errors on the response object and returns null. if valid, returns
-    /// GeminiUrl object
+    ///     Validates the raw gemini request. If not, writes the appropriate
+    ///     errors on the response object and returns null. if valid, returns
+    ///     GeminiUrl object
     /// </summary>
     private Uri? ValidateRequest(string rawRequest, Response response)
     {
-
         //The order of these checks, and the status codes they return, may seem odd
         //but are organized to pass the gemini-diagnostics check
         //https://github.com/michael-lazar/gemini-diagnostics
@@ -244,22 +254,20 @@ public abstract class AbstractGeminiApp
         }
 
         //Do specific validation here
-        if(!IsValidRequest(requestUrl, response))
-        {
+        if (!IsValidRequest(requestUrl, response))
             //overriders of IsValidRequest will have already set the appropriate
             //response status code and message, so just return
             return null;
-        }
 
         return requestUrl;
     }
 
     /// <summary>
-    /// Allow for additional, validation depending on the app. Derived classes
-    /// are responsible for set the appropriate status code and meta on the response
-    /// object
-    /// e.g: A Gemini Server will confirm that the scheme is "gemini" and matches the hostname, etc
-    /// A proxy will accept other protocols
+    ///     Allow for additional, validation depending on the app. Derived classes
+    ///     are responsible for set the appropriate status code and meta on the response
+    ///     object
+    ///     e.g: A Gemini Server will confirm that the scheme is "gemini" and matches the hostname, etc
+    ///     A proxy will accept other protocols
     /// </summary>
     /// <param name="url"></param>
     /// <param name="response"></param>
@@ -270,9 +278,9 @@ public abstract class AbstractGeminiApp
     }
 
     /// <summary>
-    /// Reads the request line URL from the client.
-    /// This looks complex, but allows for slow clients where the entire URL is not
-    /// available in a single read from the buffer
+    ///     Reads the request line URL from the client.
+    ///     This looks complex, but allows for slow clients where the entire URL is not
+    ///     available in a single read from the buffer
     /// </summary>
     /// <param name="stream"></param>
     /// <returns></returns>
@@ -281,7 +289,7 @@ public abstract class AbstractGeminiApp
         var requestBuffer = new List<byte>(MaxRequestSize);
         byte[] readBuffer = { 0 };
 
-        int readCount = 0;
+        var readCount = 0;
         while (stream.Read(readBuffer, 0, 1) == 1)
         {
             if (readBuffer[0] == (byte)'\r')
@@ -289,24 +297,21 @@ public abstract class AbstractGeminiApp
                 //spec requires a \n next
                 stream.Read(readBuffer, 0, 1);
                 if (readBuffer[0] != (byte)'\n')
-                {
                     throw new ApplicationException("Invalid Request. Request line missing LF after CR");
-                }
                 break;
             }
+
             //keep going if we haven't read too many
             readCount++;
             if (readCount > MaxRequestSize)
-            {
-                throw new ApplicationException($"Invalid Request. Did not find CRLF within {MaxRequestSize} bytes of request line");
-            }
+                throw new ApplicationException(
+                    $"Invalid Request. Did not find CRLF within {MaxRequestSize} bytes of request line");
             requestBuffer.Add(readBuffer[0]);
         }
+
         //the URL itself should not be longer than the max size minus the trailing CRLF
         if (requestBuffer.Count > MaxRequestSize - 2)
-        {
             throw new ApplicationException($"Invalid Request. URL exceeds {MaxRequestSize - 2}");
-        }
         //spec requires request use UTF-8
         return Encoding.UTF8.GetString(requestBuffer.ToArray());
     }

@@ -141,7 +141,7 @@ public class GeminiServer : AbstractGeminiApp
             return false;
         }
 
-        if (geminiUrl.Hostname != hostname || geminiUrl.Port != port)
+        if (geminiUrl.Hostname != Hostname || geminiUrl.Port != Port)
         {
             response.ProxyRefused("hosts or ports");
             return false;
