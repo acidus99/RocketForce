@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 
 namespace RocketForce.Logging;
@@ -41,7 +41,7 @@ public class W3CLogger
         }
         else
         {
-            logger.WriteLine($"{date} {time} {remoteIp} ERROR: {what} {ex.Message}");
+            logger.WriteLine($"{date} {time} {remoteIp} ERROR ({ex.GetType().Name}): {what} {ex.Message}");
             logger.WriteLine(ex.StackTrace);
         }
     }

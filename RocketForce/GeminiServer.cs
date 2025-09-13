@@ -80,6 +80,7 @@ public class GeminiServer : AbstractGeminiApp
     {
         //output to the console so the error still shows up in logs
         Console.WriteLine($"Unhandled Exception Callback: {ex.Message}");
+        Console.WriteLine(ex.StackTrace);
 
         if (response.IsSending)
         {
